@@ -5,12 +5,12 @@
 /**
  * Color of a chess piece.
  */
-export type Color = 'white' | 'black';
+export type Color = "white" | "black";
 
 /**
  * Type of chess piece.
  */
-export type PieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
+export type PieceType = "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";
 
 /**
  * Chess square notation (e.g., 'a1', 'e4').
@@ -70,4 +70,3 @@ export interface Game {
 export type MoveValidationResult =
   | { readonly valid: true }
   | { readonly valid: false; readonly reason: string };
-
