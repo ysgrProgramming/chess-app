@@ -39,7 +39,9 @@ describe("Chess Engine", () => {
       const result = validateMove(initialBoardState, move);
 
       expect(result.valid).toBe(false);
-      expect(result.reason).toBeDefined();
+      if (!result.valid) {
+        expect(result.reason).toBeDefined();
+      }
     });
 
     it("should reject move when it is not the active player's turn", () => {
@@ -51,7 +53,9 @@ describe("Chess Engine", () => {
       const result = validateMove(boardState, move);
 
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain("turn");
+      if (!result.valid) {
+        expect(result.reason).toContain("turn");
+      }
     });
 
     it("should reject move from empty square", () => {
@@ -59,7 +63,9 @@ describe("Chess Engine", () => {
       const result = validateMove(initialBoardState, move);
 
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain("empty");
+      if (!result.valid) {
+        expect(result.reason).toContain("empty");
+      }
     });
 
     it("should reject move to square occupied by own piece", () => {
@@ -67,7 +73,9 @@ describe("Chess Engine", () => {
       const result = validateMove(initialBoardState, move);
 
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain("own piece");
+      if (!result.valid) {
+        expect(result.reason).toContain("own piece");
+      }
     });
 
     it("should validate legal knight move from b1 to c3", () => {
@@ -103,7 +111,9 @@ describe("Chess Engine", () => {
       const result = validateMove(boardState, move);
 
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain("check");
+      if (!result.valid) {
+        expect(result.reason).toContain("check");
+      }
     });
   });
 
