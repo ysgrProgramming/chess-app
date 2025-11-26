@@ -8,7 +8,8 @@ import {
   type MoveValidationResult,
   type Color,
   type Piece,
-  type CastlingRights
+  type CastlingRights,
+  type Square
 } from "./types";
 
 /**
@@ -368,8 +369,7 @@ function canPieceAttackSquare(
       const absFileDelta = Math.abs(fileDelta);
       const absRankDelta = Math.abs(rankDelta);
       return (
-        (absFileDelta === 2 && absRankDelta === 1) ||
-        (absFileDelta === 1 && absRankDelta === 2)
+        (absFileDelta === 2 && absRankDelta === 1) || (absFileDelta === 1 && absRankDelta === 2)
       );
     }
     case "bishop": {

@@ -86,23 +86,9 @@ describe("Chess Engine", () => {
 
     it("should reject move that puts own king in check", () => {
       // Create a board state where moving a piece would expose the king
-      // e2 pawn protects e1 king from e8 queen (vertical attack).
-      // Moving the pawn forward removes the protection and exposes the king to check.
+      // f1 rook protects e1 king from e8 queen (vertical attack).
+      // Moving the rook away exposes the king to check.
       const boardState: BoardState = {
-        ...initialBoardState,
-        squares: new Map([
-          ["e1", { color: "white", type: "king" }],
-          ["e2", { color: "white", type: "pawn" }],
-          ["d2", { color: "white", type: "pawn" }], // Another pawn to make the setup valid
-          ["e8", { color: "black", type: "queen" }], // Queen attacks vertically from e8 to e1
-          ["f8", { color: "black", type: "king" }] // Black king moved to f8
-        ]),
-        activeColor: "white"
-      };
-      // Move d2 pawn forward, which doesn't protect e1
-      // Then e2 pawn can move forward, exposing e1 to check
-      // Actually, let's use a simpler approach: move a rook that protects the king
-      const boardState2: BoardState = {
         ...initialBoardState,
         squares: new Map([
           ["e1", { color: "white", type: "king" }],
@@ -114,7 +100,7 @@ describe("Chess Engine", () => {
       };
       // Move rook away, exposing king to check
       const move: Move = { from: "f1", to: "f2" };
-      const result = validateMove(boardState2, move);
+      const result = validateMove(boardState, move);
 
       expect(result.valid).toBe(false);
       expect(result.reason).toContain("check");
