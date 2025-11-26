@@ -429,39 +429,39 @@ function isKingInCheck(boardState: BoardState, color: Color): boolean {
  */
 export function getLegalMoves(boardState: BoardState, fromSquare: Square): Square[] {
   const piece = boardState.squares.get(fromSquare);
-  
+
   // Return empty array if square is empty
   if (!piece) {
     return [];
   }
-  
+
   // Return empty array if it's not the active player's piece
   if (piece.color !== boardState.activeColor) {
     return [];
   }
-  
+
   const legalMoves: Square[] = [];
-  
+
   // Check all possible destination squares (a1-h8)
   for (let file = 0; file < 8; file++) {
     for (let rank = 1; rank <= 8; rank++) {
       const toSquare = String.fromCharCode(97 + file) + rank.toString();
-      
+
       // Skip if same square
       if (toSquare === fromSquare) {
         continue;
       }
-      
+
       // Validate the move
       const move: Move = { from: fromSquare, to: toSquare };
       const validation = validateMove(boardState, move);
-      
+
       if (validation.valid) {
         legalMoves.push(toSquare);
       }
     }
   }
-  
+
   return legalMoves;
 }
 

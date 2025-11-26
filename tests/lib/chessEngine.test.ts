@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import { createInitialBoardState, validateMove, applyMove, getLegalMoves } from "../../src/lib/chessEngine";
-import type { Move, BoardState, Square } from "../../src/lib/types";
+import {
+  createInitialBoardState,
+  validateMove,
+  applyMove,
+  getLegalMoves
+} from "../../src/lib/chessEngine";
+import type { Move, BoardState } from "../../src/lib/types";
 
 describe("Chess Engine", () => {
   describe("createInitialBoardState", () => {

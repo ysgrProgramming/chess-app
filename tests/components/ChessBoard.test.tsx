@@ -231,7 +231,7 @@ describe("ChessBoard", () => {
       render(<ChessBoard />);
 
       const fromSquare = screen.getByLabelText(/square e2/i);
-      
+
       // Start drag
       await user.pointer({ keys: "[MouseLeft>]", target: fromSquare });
 
@@ -271,7 +271,7 @@ describe("ChessBoard", () => {
 
     it("should return empty array for pieces with no legal moves", async () => {
       const user = userEvent.setup();
-      vi.mocked(getLegalMoves).mockImplementation((state, square) => {
+      vi.mocked(getLegalMoves).mockImplementation((_state, _square) => {
         // Return empty array for any square (simulating a piece with no legal moves)
         return [];
       });

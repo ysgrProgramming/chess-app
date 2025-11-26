@@ -4,7 +4,12 @@
 
 import React, { useState, useCallback } from "react";
 
-import { createInitialBoardState, validateMove, applyMove, getLegalMoves } from "../lib/chessEngine";
+import {
+  createInitialBoardState,
+  validateMove,
+  applyMove,
+  getLegalMoves
+} from "../lib/chessEngine";
 import type { BoardState, Move, Square } from "../lib/types";
 
 /**
