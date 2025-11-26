@@ -1,10 +1,10 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChessBoard } from "../../src/components/ChessBoard";
-import { validateMove, applyMove } from "../../src/lib/chessEngine";
+import { validateMove, applyMove, getLegalMoves } from "../../src/lib/chessEngine";
 
 // Mock the chess engine functions to track calls
 vi.mock("../../src/lib/chessEngine", async () => {
@@ -14,7 +14,8 @@ vi.mock("../../src/lib/chessEngine", async () => {
   return {
     ...actual,
     validateMove: vi.fn(actual.validateMove),
-    applyMove: vi.fn(actual.applyMove)
+    applyMove: vi.fn(actual.applyMove),
+    getLegalMoves: vi.fn(actual.getLegalMoves)
   };
 });
 
@@ -123,6 +124,168 @@ describe("ChessBoard", () => {
         // Piece should move to e4
         expect(screen.getByLabelText(/square e4/i)).toHaveTextContent("♙");
         expect(screen.getByLabelText(/square e2/i)).not.toHaveTextContent("♙");
+      });
+    });
+  });
+
+  describe("Legal move highlighting", () => {
+    it("should highlight legal destination squares when a piece is selected", async () => {
+      const user = userEvent.setup();
+      // Mock getLegalMoves to return specific legal moves for e2 pawn
+      vi.mocked(getLegalMoves).mockImplementation((state, square) => {
+        if (square === "e2") {
+          return ["e3", "e4"];
+        }
+        return [];
+      });
+
+      render(<ChessBoard />);
+
+      const fromSquare = screen.getByLabelText(/square e2/i);
+      await user.click(fromSquare);
+
+      await waitFor(() => {
+        const e3Square = screen.getByLabelText(/square e3/i);
+        const e4Square = screen.getByLabelText(/square e4/i);
+        expect(e3Square).toHaveClass("legal-move");
+        expect(e4Square).toHaveClass("legal-move");
+      });
+    });
+
+    it("should remove highlights when selection is cancelled", async () => {
+      const user = userEvent.setup();
+      vi.mocked(getLegalMoves).mockImplementation((state, square) => {
+        if (square === "e2") {
+          return ["e3", "e4"];
+        }
+        return [];
+      });
+
+      render(<ChessBoard />);
+
+      const fromSquare = screen.getByLabelText(/square e2/i);
+      await user.click(fromSquare);
+
+      await waitFor(() => {
+        const e3Square = screen.getByLabelText(/square e3/i);
+        expect(e3Square).toHaveClass("legal-move");
+      });
+
+      // Click the same square again to deselect
+      await user.click(fromSquare);
+
+      await waitFor(() => {
+        const e3Square = screen.getByLabelText(/square e3/i);
+        expect(e3Square).not.toHaveClass("legal-move");
+      });
+    });
+
+    it("should update highlights when a different piece is selected", async () => {
+      const user = userEvent.setup();
+      vi.mocked(getLegalMoves).mockImplementation((state, square) => {
+        if (square === "e2") {
+          return ["e3", "e4"];
+        }
+        if (square === "b1") {
+          return ["a3", "c3"];
+        }
+        return [];
+      });
+
+      render(<ChessBoard />);
+
+      // Select e2 pawn
+      const e2Square = screen.getByLabelText(/square e2/i);
+      await user.click(e2Square);
+
+      await waitFor(() => {
+        const e3Square = screen.getByLabelText(/square e3/i);
+        expect(e3Square).toHaveClass("legal-move");
+      });
+
+      // Select b1 knight
+      const b1Square = screen.getByLabelText(/square b1/i);
+      await user.click(b1Square);
+
+      await waitFor(() => {
+        // e3 should no longer be highlighted
+        const e3Square = screen.getByLabelText(/square e3/i);
+        expect(e3Square).not.toHaveClass("legal-move");
+        // a3 and c3 should be highlighted
+        const a3Square = screen.getByLabelText(/square a3/i);
+        const c3Square = screen.getByLabelText(/square c3/i);
+        expect(a3Square).toHaveClass("legal-move");
+        expect(c3Square).toHaveClass("legal-move");
+      });
+    });
+
+    it("should highlight legal moves when dragging a piece", async () => {
+      vi.mocked(getLegalMoves).mockImplementation((_state, square) => {
+        if (square === "e2") {
+          return ["e3", "e4"];
+        }
+        return [];
+      });
+
+      render(<ChessBoard />);
+
+      const fromSquare = screen.getByLabelText(/square e2/i);
+
+      // Start drag by firing dragStart event
+      fireEvent.dragStart(fromSquare);
+
+      await waitFor(() => {
+        const e3Square = screen.getByLabelText(/square e3/i);
+        const e4Square = screen.getByLabelText(/square e4/i);
+        expect(e3Square).toHaveClass("legal-move");
+        expect(e4Square).toHaveClass("legal-move");
+      });
+    });
+
+    it("should not highlight illegal destination squares", async () => {
+      const user = userEvent.setup();
+      vi.mocked(getLegalMoves).mockImplementation((state, square) => {
+        if (square === "e2") {
+          return ["e3", "e4"]; // Only e3 and e4 are legal
+        }
+        return [];
+      });
+
+      render(<ChessBoard />);
+
+      const fromSquare = screen.getByLabelText(/square e2/i);
+      await user.click(fromSquare);
+
+      await waitFor(() => {
+        // e5 should NOT be highlighted (illegal move)
+        const e5Square = screen.getByLabelText(/square e5/i);
+        expect(e5Square).not.toHaveClass("legal-move");
+        // e3 and e4 should be highlighted
+        const e3Square = screen.getByLabelText(/square e3/i);
+        const e4Square = screen.getByLabelText(/square e4/i);
+        expect(e3Square).toHaveClass("legal-move");
+        expect(e4Square).toHaveClass("legal-move");
+      });
+    });
+
+    it("should return empty array for pieces with no legal moves", async () => {
+      const user = userEvent.setup();
+      vi.mocked(getLegalMoves).mockImplementation((_state, _square) => {
+        // Return empty array for any square (simulating a piece with no legal moves)
+        return [];
+      });
+
+      render(<ChessBoard />);
+
+      const fromSquare = screen.getByLabelText(/square e2/i);
+      await user.click(fromSquare);
+
+      await waitFor(() => {
+        // No squares should be highlighted
+        const squares = screen.getAllByRole("gridcell");
+        squares.forEach((square) => {
+          expect(square).not.toHaveClass("legal-move");
+        });
       });
     });
   });

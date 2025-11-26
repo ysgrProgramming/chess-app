@@ -4,7 +4,12 @@
 
 import React, { useState, useCallback } from "react";
 
-import { createInitialBoardState, validateMove, applyMove } from "../lib/chessEngine";
+import {
+  createInitialBoardState,
+  validateMove,
+  applyMove,
+  getLegalMoves
+} from "../lib/chessEngine";
 import type { BoardState, Move, Square } from "../lib/types";
 
 /**
@@ -63,6 +68,18 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
   const [draggedSquare, setDraggedSquare] = useState<Square | null>(null);
 
   /**
+   * Gets legal destination squares for the currently selected or dragged piece.
+   */
+  const getCurrentLegalMoves = useCallback((): Set<Square> => {
+    const activeSquare = selectedSquare || draggedSquare;
+    if (!activeSquare) {
+      return new Set();
+    }
+    const legalMoves = getLegalMoves(boardState, activeSquare);
+    return new Set(legalMoves);
+  }, [boardState, selectedSquare, draggedSquare]);
+
+  /**
    * Attempts to make a move, validating with the rules engine.
    */
   const handleMoveAttempt = useCallback(
@@ -94,9 +111,16 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
         // Clicking the same square: deselect
         setSelectedSquare(null);
       } else {
-        // Second click: attempt move
-        handleMoveAttempt(selectedSquare, square);
-        setSelectedSquare(null);
+        // Check if clicking on another piece of the same color
+        const piece = boardState.squares.get(square);
+        if (piece && piece.color === boardState.activeColor) {
+          // Select the new piece instead
+          setSelectedSquare(square);
+        } else {
+          // Second click: attempt move
+          handleMoveAttempt(selectedSquare, square);
+          setSelectedSquare(null);
+        }
       }
     },
     [selectedSquare, boardState, handleMoveAttempt]
@@ -152,6 +176,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
       const isLight = (file + rank) % 2 === 0;
       const isSelected = selectedSquare === square;
       const isDragged = draggedSquare === square;
+      const legalMoves = getCurrentLegalMoves();
+      const isLegalMove = legalMoves.has(square);
+      const hasPiece = !!piece;
 
       return (
         <div
@@ -160,7 +187,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
           aria-label={`square ${square}`}
           className={`chess-square ${isLight ? "light" : "dark"} ${
             isSelected ? "selected" : ""
-          } ${isDragged ? "dragging" : ""}`}
+          } ${isDragged ? "dragging" : ""} ${isLegalMove ? "legal-move" : ""} ${
+            isLegalMove && hasPiece ? "legal-move-capture" : ""
+          }`}
           onClick={() => handleSquareClick(square)}
           draggable={!!piece && piece.color === boardState.activeColor}
           onDragStart={() => handleDragStart(square)}
@@ -180,6 +209,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
       boardState,
       selectedSquare,
       draggedSquare,
+      getCurrentLegalMoves,
       handleSquareClick,
       handleDragStart,
       handleDragEnd,
