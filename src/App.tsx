@@ -1,5 +1,7 @@
 import React from "react";
 
+import { ChessBoard } from "./components/ChessBoard";
+
 export const App: React.FC = () => {
   return (
     <main className="app-container">
@@ -10,10 +12,7 @@ export const App: React.FC = () => {
         </p>
       </header>
       <section className="app-placeholder">
-        <p>
-          Project setup complete. Future issues will implement the interactive board and kifu
-          features.
-        </p>
+        <ChessBoard />
       </section>
     </main>
   );

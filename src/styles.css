@@ -56,6 +56,70 @@ body {
   color: #e5e7eb;
 }
 
+.chess-board-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.chess-turn-indicator {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  padding: 0.5rem 1rem;
+  background: rgba(148, 163, 184, 0.1);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: min(80vw, 640px);
+  aspect-ratio: 1;
+  border: 2px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.chess-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.1s ease;
+  position: relative;
+}
+
+.chess-square.light {
+  background-color: #f0d9b5;
+}
+
+.chess-square.dark {
+  background-color: #b58863;
+}
+
+.chess-square:hover {
+  background-color: rgba(255, 255, 0, 0.3);
+}
+
+.chess-square.selected {
+  background-color: rgba(0, 123, 255, 0.5);
+}
+
+.chess-square.dragging {
+  opacity: 0.5;
+}
+
+.chess-piece {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1;
+  pointer-events: none;
+}
+
 @media (max-width: 600px) {
   .app-container {
     padding: 1rem;
@@ -63,5 +127,13 @@ body {
 
   .app-placeholder {
     padding: 1rem 1.1rem;
+  }
+
+  .chess-board {
+    width: min(90vw, 640px);
+  }
+
+  .chess-piece {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
   }
 }
