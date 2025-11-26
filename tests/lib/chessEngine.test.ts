@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import { createInitialBoardState, validateMove, applyMove } from "../../src/lib/chessEngine";
-import type { Move, BoardState } from "../../src/lib/types";
+import { createInitialBoardState, validateMove, applyMove, getLegalMoves } from "../../src/lib/chessEngine";
+import type { Move, BoardState, Square } from "../../src/lib/types";
 
 describe("Chess Engine", () => {
   describe("createInitialBoardState", () => {
@@ -180,6 +180,79 @@ describe("Chess Engine", () => {
       const move2: Move = { from: "e7", to: "e5" };
       boardState = applyMove(boardState, move2);
       expect(boardState.activeColor).toBe("white");
+    });
+  });
+
+  describe("getLegalMoves", () => {
+    let initialBoardState: BoardState;
+
+    beforeEach(() => {
+      initialBoardState = createInitialBoardState();
+    });
+
+    it("should return legal moves for a pawn in opening position", () => {
+      const legalMoves = getLegalMoves(initialBoardState, "e2");
+
+      expect(legalMoves).toContain("e3");
+      expect(legalMoves).toContain("e4");
+      expect(legalMoves.length).toBe(2);
+    });
+
+    it("should return legal moves for a knight in opening position", () => {
+      const legalMoves = getLegalMoves(initialBoardState, "b1");
+
+      expect(legalMoves).toContain("a3");
+      expect(legalMoves).toContain("c3");
+      expect(legalMoves.length).toBe(2);
+    });
+
+    it("should return empty array for empty square", () => {
+      const legalMoves = getLegalMoves(initialBoardState, "e4");
+
+      expect(legalMoves).toEqual([]);
+    });
+
+    it("should return empty array for opponent piece", () => {
+      const legalMoves = getLegalMoves(initialBoardState, "e7");
+
+      expect(legalMoves).toEqual([]);
+    });
+
+    it("should return legal moves excluding moves that put king in check", () => {
+      // Create a board state where moving a piece would expose the king
+      const boardState: BoardState = {
+        ...initialBoardState,
+        squares: new Map([
+          ["e1", { color: "white", type: "king" }],
+          ["f1", { color: "white", type: "rook" }], // Rook on f1 protects e1
+          ["e8", { color: "black", type: "queen" }], // Queen attacks vertically from e8
+          ["f8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white"
+      };
+      // Moving rook away would expose king to check, so it should not be in legal moves
+      const legalMoves = getLegalMoves(boardState, "f1");
+
+      expect(legalMoves).not.toContain("f2");
+      // But other legal moves should still be present
+      expect(legalMoves.length).toBeGreaterThan(0);
+    });
+
+    it("should return legal moves for a piece that can capture", () => {
+      // Set up a board where white pawn can capture black piece
+      const boardState: BoardState = {
+        ...initialBoardState,
+        squares: new Map([
+          ["e2", { color: "white", type: "pawn" }],
+          ["d3", { color: "black", type: "pawn" }]
+        ]),
+        activeColor: "white"
+      };
+      const legalMoves = getLegalMoves(boardState, "e2");
+
+      expect(legalMoves).toContain("d3"); // Capture move
+      expect(legalMoves).toContain("e3"); // Forward move
+      expect(legalMoves).toContain("e4"); // Double forward move
     });
   });
 });
