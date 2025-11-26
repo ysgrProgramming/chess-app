@@ -1,16 +1,36 @@
 .PHONY: test lint format clean help setup
 
+# Load nvm if available (for environments using nvm)
+# This Makefile automatically detects and loads nvm if ~/.nvm/nvm.sh exists
+# If nvm is not found, it assumes node/npm are already in PATH
+
 test:
-	npm test
+	@if [ -f ~/.nvm/nvm.sh ]; then \
+		bash -c 'source ~/.nvm/nvm.sh && npm test'; \
+	else \
+		npm test; \
+	fi
 
 lint:
-	npm run lint
+	@if [ -f ~/.nvm/nvm.sh ]; then \
+		bash -c 'source ~/.nvm/nvm.sh && npm run lint'; \
+	else \
+		npm run lint; \
+	fi
 
 format:
-	npm run format
+	@if [ -f ~/.nvm/nvm.sh ]; then \
+		bash -c 'source ~/.nvm/nvm.sh && npm run format'; \
+	else \
+		npm run format; \
+	fi
 
 setup:
-	npm install
+	@if [ -f ~/.nvm/nvm.sh ]; then \
+		bash -c 'source ~/.nvm/nvm.sh && npm install'; \
+	else \
+		npm install; \
+	fi
 
 clean:
 	rm -rf scratch/*
@@ -23,3 +43,6 @@ help:
 	@echo "  make format  - Format code"
 	@echo "  make setup   - Install dependencies"
 	@echo "  make clean   - Clean artifacts"
+	@echo ""
+	@echo "Note: This Makefile automatically detects and loads nvm if available."
+	@echo "If you're using nvm, make sure ~/.nvm/nvm.sh exists."

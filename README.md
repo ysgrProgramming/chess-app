@@ -124,3 +124,60 @@ root/
 1.  **TDD & Lint 強制:** ローカルで `make test` `make lint` が通らないコードはPush禁止。さらにCIでダブルチェックを行う。
 2.  **シーケンシャル処理:** 複数のIssueを同時に進行させない。常に「1つのIssue、1つのEngineerセッション」で完結させ、コンテキストの混濁を防ぐ。
 3.  **秘匿情報の保護:** AIには `.env` などのCredentialファイルへのアクセス権限を与えず、モックデータでのテストを原則とする。
+
+## 9\. 開発環境セットアップ (Development Setup)
+
+### 前提条件
+
+- **Node.js**: バージョン 20.0.0 以上が必要（`package.json`の`engines`フィールドを参照）
+- **npm**: Node.jsに付属
+
+### セットアップ手順
+
+1. **依存関係のインストール**
+   ```bash
+   make setup
+   # または
+   npm install
+   ```
+
+2. **nvmを使用している場合の注意**
+   
+   このプロジェクトの`Makefile`は、nvmを使用している環境を自動的に検出して対応します。
+   
+   - nvmがインストールされている場合（`~/.nvm/nvm.sh`が存在する場合）、`make`コマンド実行時に自動的にnvmをロードします
+   - nvmを使用していない場合、`node`と`npm`がPATHに含まれていることを前提とします
+   
+   **手動でnvmをロードする場合:**
+   ```bash
+   source ~/.nvm/nvm.sh
+   make test
+   make lint
+   ```
+   
+   **Makefileが自動的にnvmをロードするため、通常は以下で実行可能:**
+   ```bash
+   make test    # テストを実行
+   make lint    # Lintを実行
+   make format  # コードフォーマットを実行
+   ```
+
+3. **動作確認**
+   ```bash
+   make test    # すべてのテストが通過することを確認
+   make lint    # Lintエラーがないことを確認
+   ```
+
+### トラブルシューティング
+
+**問題: `make test`や`make lint`が`npm: command not found`エラーを出す**
+
+- **原因**: nvmを使用しているが、シェルでnvmがロードされていない
+- **解決策**: 
+  - `Makefile`が自動的にnvmをロードするため、通常は`make test`や`make lint`を直接実行すれば動作します
+  - それでも動作しない場合、`source ~/.nvm/nvm.sh`を実行してから`make`コマンドを実行してください
+
+**問題: CI（GitHub Actions）でテストが失敗する**
+
+- **原因**: CI環境では通常、nvmは使用されず、直接`node`と`npm`が利用可能です
+- **解決策**: CIの設定（`.github/workflows/ci.yml`）でNode.jsのバージョンを指定してください
