@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useCallback } from "react";
+
 import { createInitialBoardState, validateMove, applyMove } from "../lib/chessEngine";
 import type { BoardState, Move, Square } from "../lib/types";
 
@@ -173,15 +174,22 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
         </div>
       );
     },
-    [boardState, selectedSquare, draggedSquare, handleSquareClick, handleDragStart, handleDragEnd, handleDrop, handleDragOver]
+    [
+      boardState,
+      selectedSquare,
+      draggedSquare,
+      handleSquareClick,
+      handleDragStart,
+      handleDragEnd,
+      handleDrop,
+      handleDragOver
+    ]
   );
 
   return (
     <div className="chess-board-container">
       <div className="chess-turn-indicator">
-        <span>
-          {boardState.activeColor === "white" ? "White" : "Black"}&apos;s turn
-        </span>
+        <span>{boardState.activeColor === "white" ? "White" : "Black"}&apos;s turn</span>
       </div>
       <div className="chess-board" role="grid" aria-label="Chess board">
         {Array.from({ length: 8 }, (_, rank) =>
@@ -191,4 +199,3 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
     </div>
   );
 };
-
