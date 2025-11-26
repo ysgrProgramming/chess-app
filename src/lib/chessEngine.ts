@@ -1,0 +1,457 @@
+/**
+ * Chess rules engine implementation.
+ */
+
+import {
+  type BoardState,
+  type Move,
+  type MoveValidationResult,
+  type Color,
+  type Piece,
+  type CastlingRights,
+} from './types';
+
+/**
+ * Creates the initial chess board state.
+ */
+export function createInitialBoardState(): BoardState {
+  const squares = new Map<string, Piece>();
+
+  // Place white pieces
+  squares.set('a1', { color: 'white', type: 'rook' });
+  squares.set('b1', { color: 'white', type: 'knight' });
+  squares.set('c1', { color: 'white', type: 'bishop' });
+  squares.set('d1', { color: 'white', type: 'queen' });
+  squares.set('e1', { color: 'white', type: 'king' });
+  squares.set('f1', { color: 'white', type: 'bishop' });
+  squares.set('g1', { color: 'white', type: 'knight' });
+  squares.set('h1', { color: 'white', type: 'rook' });
+
+  for (let file = 0; file < 8; file++) {
+    const square = String.fromCharCode(97 + file) + '2';
+    squares.set(square, { color: 'white', type: 'pawn' });
+  }
+
+  // Place black pieces
+  squares.set('a8', { color: 'black', type: 'rook' });
+  squares.set('b8', { color: 'black', type: 'knight' });
+  squares.set('c8', { color: 'black', type: 'bishop' });
+  squares.set('d8', { color: 'black', type: 'queen' });
+  squares.set('e8', { color: 'black', type: 'king' });
+  squares.set('f8', { color: 'black', type: 'bishop' });
+  squares.set('g8', { color: 'black', type: 'knight' });
+  squares.set('h8', { color: 'black', type: 'rook' });
+
+  for (let file = 0; file < 8; file++) {
+    const square = String.fromCharCode(97 + file) + '7';
+    squares.set(square, { color: 'black', type: 'pawn' });
+  }
+
+  const castlingRights: CastlingRights = {
+    whiteKingSide: true,
+    whiteQueenSide: true,
+    blackKingSide: true,
+    blackQueenSide: true,
+  };
+
+  return {
+    squares,
+    activeColor: 'white',
+    castlingRights,
+    enPassantTarget: null,
+    halfMoveClock: 0,
+    fullMoveNumber: 1,
+  };
+}
+
+/**
+ * Validates if a move is legal according to chess rules.
+ */
+export function validateMove(
+  boardState: BoardState,
+  move: Move
+): MoveValidationResult {
+  // Check if it's the active player's turn
+  const piece = boardState.squares.get(move.from);
+  if (!piece) {
+    return { valid: false, reason: 'Cannot move from empty square' };
+  }
+
+  if (piece.color !== boardState.activeColor) {
+    return {
+      valid: false,
+      reason: `It is ${boardState.activeColor}'s turn, not ${piece.color}'s`,
+    };
+  }
+
+  // Check if destination square is occupied by own piece
+  const destinationPiece = boardState.squares.get(move.to);
+  if (destinationPiece && destinationPiece.color === piece.color) {
+    return { valid: false, reason: 'Cannot move to square occupied by own piece' };
+  }
+
+  // Validate piece-specific move rules
+  const pieceValidation = validatePieceMove(boardState, move, piece);
+  if (!pieceValidation.valid) {
+    return pieceValidation;
+  }
+
+  // Check if move would put own king in check
+  const simulatedState = applyMoveInternal(boardState, move);
+  if (isKingInCheck(simulatedState, boardState.activeColor)) {
+    return { valid: false, reason: 'Move would put own king in check' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates piece-specific move rules.
+ */
+function validatePieceMove(
+  boardState: BoardState,
+  move: Move,
+  piece: Piece
+): MoveValidationResult {
+  const fromFile = move.from.charCodeAt(0) - 97;
+  const fromRank = parseInt(move.from[1], 10);
+  const toFile = move.to.charCodeAt(0) - 97;
+  const toRank = parseInt(move.to[1], 10);
+
+  const fileDelta = toFile - fromFile;
+  const rankDelta = toRank - fromRank;
+
+  switch (piece.type) {
+    case 'pawn':
+      return validatePawnMove(boardState, move, piece, fileDelta, rankDelta);
+    case 'rook':
+      return validateRookMove(boardState, move, fileDelta, rankDelta);
+    case 'knight':
+      return validateKnightMove(fileDelta, rankDelta);
+    case 'bishop':
+      return validateBishopMove(boardState, move, fileDelta, rankDelta);
+    case 'queen':
+      return validateQueenMove(boardState, move, fileDelta, rankDelta);
+    case 'king':
+      return validateKingMove(fileDelta, rankDelta);
+    default:
+      return { valid: false, reason: 'Unknown piece type' };
+  }
+}
+
+/**
+ * Validates pawn move.
+ */
+function validatePawnMove(
+  boardState: BoardState,
+  move: Move,
+  piece: Piece,
+  fileDelta: number,
+  rankDelta: number
+): MoveValidationResult {
+  const direction = piece.color === 'white' ? 1 : -1;
+  const startRank = piece.color === 'white' ? 2 : 7;
+
+  const fromRank = parseInt(move.from[1], 10);
+
+  // Forward move
+  if (fileDelta === 0) {
+    const destinationPiece = boardState.squares.get(move.to);
+    if (destinationPiece) {
+      return { valid: false, reason: 'Pawn cannot capture forward' };
+    }
+
+    // Single square forward
+    if (rankDelta === direction) {
+      return { valid: true };
+    }
+
+    // Double square forward from starting position
+    if (fromRank === startRank && rankDelta === 2 * direction) {
+      return { valid: true };
+    }
+
+    return { valid: false, reason: 'Invalid pawn move' };
+  }
+
+  // Capture move (diagonal)
+  if (Math.abs(fileDelta) === 1 && rankDelta === direction) {
+    const destinationPiece = boardState.squares.get(move.to);
+    if (destinationPiece && destinationPiece.color !== piece.color) {
+      return { valid: true };
+    }
+    // En passant check would go here
+    return { valid: false, reason: 'Pawn can only capture diagonally' };
+  }
+
+  return { valid: false, reason: 'Invalid pawn move' };
+}
+
+/**
+ * Validates rook move.
+ */
+function validateRookMove(
+  boardState: BoardState,
+  move: Move,
+  fileDelta: number,
+  rankDelta: number
+): MoveValidationResult {
+  // Rook moves horizontally or vertically
+  if (fileDelta !== 0 && rankDelta !== 0) {
+    return { valid: false, reason: 'Rook can only move horizontally or vertically' };
+  }
+
+  // Check if path is clear
+  if (!isPathClear(boardState, move)) {
+    return { valid: false, reason: 'Path is blocked' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates knight move.
+ */
+function validateKnightMove(fileDelta: number, rankDelta: number): MoveValidationResult {
+  const absFileDelta = Math.abs(fileDelta);
+  const absRankDelta = Math.abs(rankDelta);
+
+  // Knight moves in L-shape: (2,1) or (1,2)
+  if (
+    (absFileDelta === 2 && absRankDelta === 1) ||
+    (absFileDelta === 1 && absRankDelta === 2)
+  ) {
+    return { valid: true };
+  }
+
+  return { valid: false, reason: 'Invalid knight move' };
+}
+
+/**
+ * Validates bishop move.
+ */
+function validateBishopMove(
+  boardState: BoardState,
+  move: Move,
+  fileDelta: number,
+  rankDelta: number
+): MoveValidationResult {
+  // Bishop moves diagonally
+  if (Math.abs(fileDelta) !== Math.abs(rankDelta)) {
+    return { valid: false, reason: 'Bishop can only move diagonally' };
+  }
+
+  // Check if path is clear
+  if (!isPathClear(boardState, move)) {
+    return { valid: false, reason: 'Path is blocked' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates queen move.
+ */
+function validateQueenMove(
+  boardState: BoardState,
+  move: Move,
+  fileDelta: number,
+  rankDelta: number
+): MoveValidationResult {
+  // Queen moves like rook or bishop
+  const isHorizontalOrVertical = fileDelta === 0 || rankDelta === 0;
+  const isDiagonal = Math.abs(fileDelta) === Math.abs(rankDelta);
+
+  if (!isHorizontalOrVertical && !isDiagonal) {
+    return { valid: false, reason: 'Invalid queen move' };
+  }
+
+  // Check if path is clear
+  if (!isPathClear(boardState, move)) {
+    return { valid: false, reason: 'Path is blocked' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates king move.
+ */
+function validateKingMove(fileDelta: number, rankDelta: number): MoveValidationResult {
+  // King moves one square in any direction
+  if (Math.abs(fileDelta) > 1 || Math.abs(rankDelta) > 1) {
+    return { valid: false, reason: 'King can only move one square' };
+  }
+
+  // Castling would be handled separately
+  return { valid: true };
+}
+
+/**
+ * Checks if the path between from and to squares is clear.
+ */
+function isPathClear(boardState: BoardState, move: Move): boolean {
+  const fromFile = move.from.charCodeAt(0);
+  const fromRank = parseInt(move.from[1], 10);
+  const toFile = move.to.charCodeAt(0);
+  const toRank = parseInt(move.to[1], 10);
+
+  const fileStep = toFile === fromFile ? 0 : toFile > fromFile ? 1 : -1;
+  const rankStep = toRank === fromRank ? 0 : toRank > fromRank ? 1 : -1;
+
+  let currentFile = fromFile + fileStep;
+  let currentRank = fromRank + rankStep;
+
+  while (currentFile !== toFile || currentRank !== toRank) {
+    const square = String.fromCharCode(currentFile) + currentRank.toString();
+    if (boardState.squares.has(square)) {
+      return false;
+    }
+    currentFile += fileStep;
+    currentRank += rankStep;
+  }
+
+  return true;
+}
+
+/**
+ * Checks if the king of the given color is in check.
+ */
+function isKingInCheck(boardState: BoardState, color: Color): boolean {
+  // Find the king
+  let kingSquare: string | undefined;
+  for (const [square, piece] of boardState.squares.entries()) {
+    if (piece.type === 'king' && piece.color === color) {
+      kingSquare = square;
+      break;
+    }
+  }
+
+  if (!kingSquare) {
+    return false;
+  }
+
+  // Check if any opponent piece can attack the king
+  const opponentColor: Color = color === 'white' ? 'black' : 'white';
+  for (const [square, piece] of boardState.squares.entries()) {
+    if (piece.color === opponentColor) {
+      const move: Move = { from: square, to: kingSquare };
+      const pieceValidation = validatePieceMove(boardState, move, piece);
+      if (pieceValidation.valid) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Applies a move to the board state.
+ * Throws an error if the move is invalid.
+ */
+export function applyMove(boardState: BoardState, move: Move): BoardState {
+  const validation = validateMove(boardState, move);
+  if (!validation.valid) {
+    throw new Error(`Invalid move: ${validation.reason}`);
+  }
+
+  return applyMoveInternal(boardState, move);
+}
+
+/**
+ * Internal function to apply a move without validation.
+ */
+function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
+  const newSquares = new Map(boardState.squares);
+  const piece = boardState.squares.get(move.from);
+
+  if (!piece) {
+    throw new Error('Cannot apply move: no piece at source square');
+  }
+
+  // Move the piece
+  newSquares.delete(move.from);
+  newSquares.set(move.to, piece);
+
+  // Handle pawn promotion
+  const toRank = parseInt(move.to[1], 10);
+  if (piece.type === 'pawn' && (toRank === 8 || toRank === 1)) {
+    const promotedType = move.promotion || 'queen';
+    newSquares.set(move.to, { ...piece, type: promotedType });
+  }
+
+  // Update castling rights if king or rook moves
+  const newCastlingRights = updateCastlingRights(
+    boardState.castlingRights,
+    move,
+    piece
+  );
+
+  // Update en passant target (simplified - would need more logic for actual en passant)
+  const newEnPassantTarget =
+    piece.type === 'pawn' && Math.abs(parseInt(move.to[1], 10) - parseInt(move.from[1], 10)) === 2
+      ? move.to
+      : null;
+
+  // Update half move clock (increments for non-pawn moves and captures)
+  const destinationPiece = boardState.squares.get(move.to);
+  const newHalfMoveClock =
+    piece.type === 'pawn' || destinationPiece ? 0 : boardState.halfMoveClock + 1;
+
+  // Update full move number (increments when black moves)
+  const newFullMoveNumber =
+    boardState.activeColor === 'black'
+      ? boardState.fullMoveNumber + 1
+      : boardState.fullMoveNumber;
+
+  // Switch active color
+  const newActiveColor: Color = boardState.activeColor === 'white' ? 'black' : 'white';
+
+  return {
+    squares: newSquares,
+    activeColor: newActiveColor,
+    castlingRights: newCastlingRights,
+    enPassantTarget: newEnPassantTarget,
+    halfMoveClock: newHalfMoveClock,
+    fullMoveNumber: newFullMoveNumber,
+  };
+}
+
+/**
+ * Updates castling rights based on the move.
+ */
+function updateCastlingRights(
+  currentRights: CastlingRights,
+  move: Move,
+  piece: Piece
+): CastlingRights {
+  const newRights = { ...currentRights };
+
+  // If king moves, lose all castling rights for that color
+  if (piece.type === 'king') {
+    if (piece.color === 'white') {
+      newRights.whiteKingSide = false;
+      newRights.whiteQueenSide = false;
+    } else {
+      newRights.blackKingSide = false;
+      newRights.blackQueenSide = false;
+    }
+  }
+
+  // If rook moves, lose castling rights for that side
+  if (piece.type === 'rook') {
+    if (move.from === 'a1') {
+      newRights.whiteQueenSide = false;
+    } else if (move.from === 'h1') {
+      newRights.whiteKingSide = false;
+    } else if (move.from === 'a8') {
+      newRights.blackQueenSide = false;
+    } else if (move.from === 'h8') {
+      newRights.blackKingSide = false;
+    }
+  }
+
+  return newRights;
+}
+
