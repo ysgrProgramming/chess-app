@@ -124,3 +124,41 @@ root/
 1.  **TDD & Lint 強制:** ローカルで `make test` `make lint` が通らないコードはPush禁止。さらにCIでダブルチェックを行う。
 2.  **シーケンシャル処理:** 複数のIssueを同時に進行させない。常に「1つのIssue、1つのEngineerセッション」で完結させ、コンテキストの混濁を防ぐ。
 3.  **秘匿情報の保護:** AIには `.env` などのCredentialファイルへのアクセス権限を与えず、モックデータでのテストを原則とする。
+
+## 9\. 開発環境セットアップ (Development Setup)
+
+### 前提条件
+
+- **Node.js**: バージョン 20.0.0 以上が必要（`package.json`の`engines`フィールドを参照）
+- **npm**: Node.jsに付属し、PATHに含まれていること
+
+### セットアップ手順
+
+1. **依存関係のインストール**
+
+   ```bash
+   make setup
+   # または
+   npm install
+   ```
+
+2. **動作確認**
+   ```bash
+   make test    # すべてのテストが通過することを確認
+   make lint    # Lintエラーがないことを確認
+   ```
+
+### トラブルシューティング
+
+**問題: `make test`や`make lint`が`npm: command not found`エラーを出す**
+
+- **原因**: `npm`がPATHに含まれていない
+- **解決策**:
+  - Node.jsが正しくインストールされているか確認: `node --version`、`npm --version`
+  - nvmを使用している場合、シェルの設定ファイル（`.bashrc`、`.zshrc`など）でnvmが自動的にロードされるように設定してください
+  - または、手動で`source ~/.nvm/nvm.sh`を実行してから`make`コマンドを実行してください
+
+**問題: CI（GitHub Actions）でテストが失敗する**
+
+- **原因**: CI環境でNode.jsが正しくセットアップされていない
+- **解決策**: CIの設定（`.github/workflows/ci.yml`）でNode.jsのバージョンを指定してください
