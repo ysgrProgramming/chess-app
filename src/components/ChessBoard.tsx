@@ -158,7 +158,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
           key={square}
           role="gridcell"
           aria-label={`square ${square}`}
-          className={`chess-square ${isLight ? "light" : "dark"} ${isSelected ? "selected" : ""} ${isDragged ? "dragging" : ""}`}
+          className={`chess-square ${isLight ? "light" : "dark"} ${
+            isSelected ? "selected" : ""
+          } ${isDragged ? "dragging" : ""}`}
           onClick={() => handleSquareClick(square)}
           draggable={!!piece && piece.color === boardState.activeColor}
           onDragStart={() => handleDragStart(square)}
