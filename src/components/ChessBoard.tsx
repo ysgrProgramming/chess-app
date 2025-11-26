@@ -199,3 +199,4 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
     </div>
   );
 };
+
