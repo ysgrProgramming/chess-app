@@ -55,12 +55,16 @@ export interface ChessBoardProps {
    * Optional initial board state. If not provided, uses standard starting position.
    */
   initialBoardState?: BoardState;
+  /**
+   * Callback invoked when a move is successfully applied.
+   */
+  onMove?: (move: Move) => void;
 }
 
 /**
  * Interactive chessboard component.
  */
-export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => {
+export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMove }) => {
   const [boardState, setBoardState] = useState<BoardState>(
     initialBoardState || createInitialBoardState()
   );
@@ -90,10 +94,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
       if (validation.valid) {
         const newBoardState = applyMove(boardState, move);
         setBoardState(newBoardState);
+        if (onMove) {
+          onMove(move);
+        }
       }
       // If invalid, the move is simply not applied (visual revert happens automatically)
     },
-    [boardState]
+    [boardState, onMove]
   );
 
   /**

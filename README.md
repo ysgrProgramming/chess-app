@@ -135,6 +135,7 @@ root/
 ### セットアップ手順
 
 1. **依存関係のインストール**
+
    ```bash
    make setup
    # または
@@ -152,7 +153,7 @@ root/
 **問題: `make test`や`make lint`が`npm: command not found`エラーを出す**
 
 - **原因**: `npm`がPATHに含まれていない
-- **解決策**: 
+- **解決策**:
   - Node.jsが正しくインストールされているか確認: `node --version`、`npm --version`
   - nvmを使用している場合、シェルの設定ファイル（`.bashrc`、`.zshrc`など）でnvmが自動的にロードされるように設定してください
   - または、手動で`source ~/.nvm/nvm.sh`を実行してから`make`コマンドを実行してください

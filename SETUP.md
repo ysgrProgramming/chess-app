@@ -23,26 +23,29 @@ make setup   # 依存関係をインストール
 ### `npm: command not found`エラーが発生する場合
 
 1. **Node.jsとnpmがインストールされているか確認**
+
    ```bash
    node --version
    npm --version
    ```
 
 2. **npmがPATHに含まれているか確認**
+
    ```bash
    which npm
    ```
 
 3. **nvmを使用している場合**
-   
+
    nvmを使用している環境では、シェルの設定ファイル（`.bashrc`、`.zshrc`など）でnvmが自動的にロードされるように設定してください。
-   
+
    通常、nvmのインストール時に以下の行が追加されます：
+
    ```bash
    export NVM_DIR="$HOME/.nvm"
    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
    ```
-   
+
    設定ファイルを再読み込みするか、新しいターミナルを開いてから`make`コマンドを実行してください。
 
 ### CI環境での動作
@@ -55,4 +58,3 @@ CIの設定（`.github/workflows/ci.yml`）でNode.jsのバージョンを指定
 - [Node.js公式ドキュメント](https://nodejs.org/)
 - [npm公式ドキュメント](https://docs.npmjs.com/)
 - このプロジェクトの`Makefile`を参照してください
-
