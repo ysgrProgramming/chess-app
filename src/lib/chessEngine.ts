@@ -305,6 +305,94 @@ function isPathClear(boardState: BoardState, move: Move): boolean {
 }
 
 /**
+ * Checks if the path between from and to squares is clear for attack (excluding the destination square).
+ * All pieces on the path block the attack.
+ */
+function isPathClearForAttack(
+  boardState: BoardState,
+  fromSquare: Square,
+  toSquare: Square
+): boolean {
+  const fromFile = fromSquare.charCodeAt(0);
+  const fromRank = parseInt(fromSquare[1], 10);
+  const toFile = toSquare.charCodeAt(0);
+  const toRank = parseInt(toSquare[1], 10);
+
+  const fileStep = toFile === fromFile ? 0 : toFile > fromFile ? 1 : -1;
+  const rankStep = toRank === fromRank ? 0 : toRank > fromRank ? 1 : -1;
+
+  let currentFile = fromFile + fileStep;
+  let currentRank = fromRank + rankStep;
+
+  // Check path excluding the destination square
+  while (currentFile !== toFile || currentRank !== toRank) {
+    const square = String.fromCharCode(currentFile) + currentRank.toString();
+    if (boardState.squares.has(square)) {
+      return false;
+    }
+    currentFile += fileStep;
+    currentRank += rankStep;
+  }
+
+  return true;
+}
+
+/**
+ * Checks if a piece can attack a target square.
+ */
+function canPieceAttackSquare(
+  boardState: BoardState,
+  pieceSquare: Square,
+  piece: Piece,
+  targetSquare: Square
+): boolean {
+  const fromFile = pieceSquare.charCodeAt(0);
+  const fromRank = parseInt(pieceSquare[1], 10);
+  const toFile = targetSquare.charCodeAt(0);
+  const toRank = parseInt(targetSquare[1], 10);
+
+  const fileDelta = toFile - fromFile;
+  const rankDelta = toRank - fromRank;
+
+  switch (piece.type) {
+    case "pawn": {
+      const direction = piece.color === "white" ? 1 : -1;
+      // Pawn attacks diagonally
+      return Math.abs(fileDelta) === 1 && rankDelta === direction;
+    }
+    case "rook": {
+      const isHorizontalOrVertical = fileDelta === 0 || rankDelta === 0;
+      return isHorizontalOrVertical && isPathClearForAttack(boardState, pieceSquare, targetSquare);
+    }
+    case "knight": {
+      const absFileDelta = Math.abs(fileDelta);
+      const absRankDelta = Math.abs(rankDelta);
+      return (
+        (absFileDelta === 2 && absRankDelta === 1) ||
+        (absFileDelta === 1 && absRankDelta === 2)
+      );
+    }
+    case "bishop": {
+      const isDiagonal = Math.abs(fileDelta) === Math.abs(rankDelta);
+      return isDiagonal && isPathClearForAttack(boardState, pieceSquare, targetSquare);
+    }
+    case "queen": {
+      const isHorizontalOrVertical = fileDelta === 0 || rankDelta === 0;
+      const isDiagonal = Math.abs(fileDelta) === Math.abs(rankDelta);
+      return (
+        (isHorizontalOrVertical || isDiagonal) &&
+        isPathClearForAttack(boardState, pieceSquare, targetSquare)
+      );
+    }
+    case "king": {
+      return Math.abs(fileDelta) <= 1 && Math.abs(rankDelta) <= 1;
+    }
+    default:
+      return false;
+  }
+}
+
+/**
  * Checks if the king of the given color is in check.
  */
 function isKingInCheck(boardState: BoardState, color: Color): boolean {
@@ -325,9 +413,7 @@ function isKingInCheck(boardState: BoardState, color: Color): boolean {
   const opponentColor: Color = color === "white" ? "black" : "white";
   for (const [square, piece] of boardState.squares.entries()) {
     if (piece.color === opponentColor) {
-      const move: Move = { from: square, to: kingSquare };
-      const pieceValidation = validatePieceMove(boardState, move, piece);
-      if (pieceValidation.valid) {
+      if (canPieceAttackSquare(boardState, square, piece, kingSquare)) {
         return true;
       }
     }
