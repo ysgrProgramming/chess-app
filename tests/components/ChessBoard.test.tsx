@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChessBoard } from "../../src/components/ChessBoard";
@@ -220,8 +220,7 @@ describe("ChessBoard", () => {
     });
 
     it("should highlight legal moves when dragging a piece", async () => {
-      const user = userEvent.setup();
-      vi.mocked(getLegalMoves).mockImplementation((state, square) => {
+      vi.mocked(getLegalMoves).mockImplementation((_state, square) => {
         if (square === "e2") {
           return ["e3", "e4"];
         }
@@ -232,8 +231,8 @@ describe("ChessBoard", () => {
 
       const fromSquare = screen.getByLabelText(/square e2/i);
 
-      // Start drag
-      await user.pointer({ keys: "[MouseLeft>]", target: fromSquare });
+      // Start drag by firing dragStart event
+      fireEvent.dragStart(fromSquare);
 
       await waitFor(() => {
         const e3Square = screen.getByLabelText(/square e3/i);

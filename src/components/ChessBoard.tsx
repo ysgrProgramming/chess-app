@@ -111,9 +111,16 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState }) => 
         // Clicking the same square: deselect
         setSelectedSquare(null);
       } else {
-        // Second click: attempt move
-        handleMoveAttempt(selectedSquare, square);
-        setSelectedSquare(null);
+        // Check if clicking on another piece of the same color
+        const piece = boardState.squares.get(square);
+        if (piece && piece.color === boardState.activeColor) {
+          // Select the new piece instead
+          setSelectedSquare(square);
+        } else {
+          // Second click: attempt move
+          handleMoveAttempt(selectedSquare, square);
+          setSelectedSquare(null);
+        }
       }
     },
     [selectedSquare, boardState, handleMoveAttempt]
