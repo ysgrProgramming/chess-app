@@ -1,22 +1,16 @@
 .PHONY: test lint format clean help setup
 
-# [PENDING] Engineer: Implement these commands based on the chosen tech stack
-
 test:
-	@echo "Error: 'make test' is not implemented yet."
-	@echo "Please implement it in the Makefile."
-	@exit 1
+	npm test
 
 lint:
-	@echo "Error: 'make lint' is not implemented yet."
-	@exit 1
+	npm run lint
 
 format:
-	@echo "Error: 'make format' is not implemented yet."
-	@exit 1
+	npm run format
 
 setup:
-	@echo "No setup required or not implemented."
+	npm install
 
 clean:
 	rm -rf scratch/*

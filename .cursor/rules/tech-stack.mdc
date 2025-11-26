@@ -16,6 +16,12 @@ These rules apply to **ALL** projects regardless of the language or framework.
 - **NEVER** hardcode secrets in the source code. Use environment variables.
 - **NEVER** output secret values in logs, print statements, or PR descriptions.
 - **Mocking:** External services requiring credentials must be mocked in tests.
+- `.env` and `.env.*` files are considered sensitive:
+  - Do NOT print, commit, or modify their contents via AI.
+- Using authenticated CLI tools (e.g. `git`, `gh`) is **allowed**:
+  - You may invoke them as black-box commands (e.g. `gh issue create`, `gh pr create`).
+  - You must NOT open, read, or echo their configuration files or tokens.
+  - You must NOT print environment variables that contain secrets.
 
 ### Experimental Code
 - Any code that is "experimental", "temporary", or "proof of concept" must be placed in the `scratch/` directory.
@@ -27,14 +33,14 @@ These rules apply to **ALL** projects regardless of the language or framework.
 *The Architect decides the conceptual stack in `REQUIREMENT.md`. The Manager then creates a "Project Setup" Issue, and the Engineer updates this file accordingly.*
 
 ### Core Stack
-- **Language:** [PENDING: To be filled by Engineer]
-- **Framework:** [PENDING: To be filled by Engineer]
-- **Database:** [PENDING: To be filled by Engineer]
+- **Language:** TypeScript (strict type checking enabled)
+- **Framework:** React (SPA) bundled with Vite
+- **Database:** None for this phase (in-memory and browser session state only)
 
 ### Development Tools
-- **Testing Framework:** [PENDING: To be filled by Engineer]
-- **Linter/Formatter:** [PENDING: To be filled by Engineer]
-- **Package Manager:** [PENDING: To be filled by Engineer]
+- **Testing Framework:** Vitest + React Testing Library + jsdom test environment
+- **Linter/Formatter:** ESLint (TypeScript + React rules) + Prettier
+- **Package Manager:** npm (Node.js LTS)
 
 ---
 
@@ -42,13 +48,20 @@ These rules apply to **ALL** projects regardless of the language or framework.
 *To be filled by the Engineer based on the chosen language's best practices.*
 
 ### Style Guide
-- [PENDING: e.g., PEP8, Airbnb Style, Google Style]
+- Follow TypeScript and React best practices with strict typing enabled (`strict: true` in `tsconfig.json`).
+- Prefer explicit, descriptive names (verb+Object for functions, no unclear abbreviations).
+- Use functional React components with hooks; avoid legacy class components.
 
 ### File Structure
-- [PENDING: Brief description of the directory structure]
+- `src/` contains application code.
+- `src/components/` contains presentational and container components.
+- `src/lib/` contains shared utilities (e.g., chess engine, domain logic) once introduced.
+- `tests/` contains unit and component tests mirroring the `src/` structure.
 
 ### Error Handling
-- [PENDING: Project-specific error handling patterns]
+- Avoid throwing uncaught errors from UI components; surface recoverable issues via UI state where appropriate.
+- For unexpected runtime errors in the browser, prefer fail-safe behavior (e.g., allow user to reset to initial board state).
+- No network or persistence layer is used in this phase; if introduced later, all external calls must be wrapped and errors explicitly handled.
 
 ---
 
