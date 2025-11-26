@@ -11,12 +11,10 @@ export const App: React.FC = () => {
       </header>
       <section className="app-placeholder">
         <p>
-          Project setup complete. Future issues will implement the interactive board, move
-          list, and kifu features.
+          Project setup complete. Future issues will implement the interactive board and kifu
+          features.
         </p>
       </section>
     </main>
   );
 };
-
-
