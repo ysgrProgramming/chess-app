@@ -32,14 +32,14 @@ describe("ChessBoard", () => {
       expect(squares).toHaveLength(64);
 
       // Check that white pieces are in correct positions
-      const whiteRook = screen.getByLabelText(/white rook/i);
-      expect(whiteRook).toBeInTheDocument();
+      const whiteRooks = screen.getAllByLabelText(/white rook/i);
+      expect(whiteRooks.length).toBeGreaterThan(0);
       const whiteKing = screen.getByLabelText(/white king/i);
       expect(whiteKing).toBeInTheDocument();
 
       // Check that black pieces are in correct positions
-      const blackRook = screen.getByLabelText(/black rook/i);
-      expect(blackRook).toBeInTheDocument();
+      const blackRooks = screen.getAllByLabelText(/black rook/i);
+      expect(blackRooks.length).toBeGreaterThan(0);
       const blackKing = screen.getByLabelText(/black king/i);
       expect(blackKing).toBeInTheDocument();
     });
@@ -127,4 +127,3 @@ describe("ChessBoard", () => {
     });
   });
 });
-
