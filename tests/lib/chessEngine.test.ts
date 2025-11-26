@@ -111,7 +111,9 @@ describe("Chess Engine", () => {
       const result = validateMove(boardState, move);
 
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain("check");
+      if (!result.valid) {
+        expect(result.reason).toContain("check");
+      }
     });
   });
 
