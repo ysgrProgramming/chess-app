@@ -1,0 +1,47 @@
+---
+description: Rules for project administration, branching strategies, and meta-reviews.
+globs: .github/**, ROADMAP.md
+---
+
+# Project Administration Rules
+
+## 1. Branching Strategy
+- **Main Branch:** `main` (Protected, Deployable)
+  - No direct commits. All changes must come through Pull Requests.
+  - Only humans (not AI) are allowed to press the "Merge" button.
+- **Feature Branch:** `feature/issue-<number>-<short-description>`
+  - Example: `feature/issue-42-user-login`
+- **Fix Branch:** `fix/issue-<number>-<short-description>`
+
+## 2. Conflict Resolution
+- If a merge conflict occurs, the **Engineer** is responsible for resolving it.
+- **Process:**
+    1. Rebase `main` into the feature branch.
+    2. Resolve conflicts manually.
+    3. Run `make test` to ensure logic is still valid.
+    4. Force push (if allowed on feature branch) or push to update PR.
+
+## 3. Labels
+
+- `task`: Normal implementation Issues created from requirements.
+- `refactor`: Issues for architectural/technical debt cleanup.
+- `in-progress`: Set by Engineer when starting work on an Issue.
+- `ready-for-review`: (Optional) Set by Engineer when a PR is ready for Manager review.
+
+## 4. Meta-Review Triggers
+- The Manager performs meta-reviews and records findings as:
+  - Comments on the relevant PR, and/or
+  - New `refactor` Issues in GitHub.
+The Manager must perform a meta-review when:
+- A major milestone is reached (e.g., v0.1 release).
+- 5+ PRs have been merged consecutively.
+- A "Refactor" task is completed.
+
+## 5. Roadmap Management
+- `ROADMAP.md` must be the single source of truth for high-level progress.
+- When an Issue is closed, the **Manager (or human owner)** updates the corresponding status in `ROADMAP.md` as part of meta-review or release planning.
+
+## 6. Changing These Rules
+- Changes to `.cursor/rules/project-admin.mdc` must go through:
+  1. A dedicated Issue describing the proposed change.
+  2. A Pull Request reviewed by the Manager.
