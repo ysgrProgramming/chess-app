@@ -23,3 +23,5 @@ help:
 	@echo "  make format  - Format code"
 	@echo "  make setup   - Install dependencies"
 	@echo "  make clean   - Clean artifacts"
+	@echo ""
+	@echo "Note: This Makefile requires npm to be available in PATH."
