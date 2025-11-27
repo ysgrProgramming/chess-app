@@ -36,6 +36,12 @@ export const App: React.FC = () => {
       return "Draw by stalemate";
     }
     if (gameResult.type === "draw") {
+      if (gameResult.reason === "threefold repetition") {
+        return "Draw by threefold repetition";
+      }
+      if (gameResult.reason === "50-move rule") {
+        return "Draw by 50-move rule";
+      }
       return "Draw by agreement";
     }
     if (gameResult.type === "resignation") {

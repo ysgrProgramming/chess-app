@@ -78,5 +78,5 @@ export type GameResult =
   | { readonly type: "ongoing" }
   | { readonly type: "checkmate"; readonly winner: Color }
   | { readonly type: "stalemate" }
-  | { readonly type: "draw"; readonly reason: "agreed" }
+  | { readonly type: "draw"; readonly reason: "agreed" | "threefold repetition" | "50-move rule" }
   | { readonly type: "resignation"; readonly winner: Color };

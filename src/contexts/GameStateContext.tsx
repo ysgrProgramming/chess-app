@@ -84,11 +84,20 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
 
   /**
    * Computes the current board state based on move history and current position.
+   * Also builds board state history for threefold repetition detection.
    */
-  const currentBoardState = useMemo((): BoardState => {
+  const { currentBoardState, boardStateHistory } = useMemo((): {
+    currentBoardState: BoardState;
+    boardStateHistory: BoardState[];
+  } => {
     let boardState = createInitialBoardState();
     let lastAppliedMoveColor: Color | null = null;
     const movesToApply = state.moveHistory.slice(0, state.currentMoveIndex + 1);
+    const history: BoardState[] = [];
+
+    // Include initial state in history
+    history.push(boardState);
+
     for (const move of movesToApply) {
       const movingPiece = boardState.squares.get(move.from);
       if (!movingPiece) {
@@ -97,11 +106,13 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
       lastAppliedMoveColor = movingPiece.color;
       const stateForMove: BoardState = { ...boardState, activeColor: movingPiece.color };
       boardState = applyMove(stateForMove, move);
+      // Add state after each move to history (for threefold repetition detection)
+      history.push(boardState);
     }
     if (state.isPreviewing && lastAppliedMoveColor) {
       boardState = { ...boardState, activeColor: lastAppliedMoveColor };
     }
-    return boardState;
+    return { currentBoardState: boardState, boardStateHistory: history };
   }, [state.moveHistory, state.currentMoveIndex, state.isPreviewing]);
 
   /**
@@ -132,9 +143,9 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     if (state.gameResult.type === "draw" || state.gameResult.type === "resignation") {
       return state.gameResult;
     }
-    // Otherwise, evaluate from board state (checkmate/stalemate)
-    return evaluateGameResult(currentBoardState);
-  }, [currentBoardState, state.isPreviewing, state.gameResult]);
+    // Otherwise, evaluate from board state (checkmate/stalemate/threefold/50-move)
+    return evaluateGameResult(currentBoardState, boardStateHistory);
+  }, [currentBoardState, boardStateHistory, state.isPreviewing, state.gameResult]);
 
   const isGameOver = gameResult.type !== "ongoing";
 

@@ -1373,5 +1373,240 @@ describe("Chess Engine", () => {
         expect(result.winner).toBe("white");
       }
     });
+
+    describe("Threefold repetition detection", () => {
+      it("should detect threefold repetition when same board state occurs three times", () => {
+        // Create a board state that will be repeated
+        const repeatedState: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }],
+            ["g1", { color: "white", type: "rook" }],
+            ["g8", { color: "black", type: "rook" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 0,
+          fullMoveNumber: 1
+        };
+
+        // Create history with the same state appearing three times
+        const boardStateHistory: BoardState[] = [repeatedState, repeatedState, repeatedState];
+        const result = evaluateGameResult(repeatedState, boardStateHistory);
+
+        expect(result.type).toBe("draw");
+        if (result.type === "draw") {
+          expect(result.reason).toBe("threefold repetition");
+        }
+      });
+
+      it("should not detect threefold repetition when same state occurs only twice", () => {
+        const repeatedState: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 0,
+          fullMoveNumber: 1
+        };
+
+        const boardStateHistory: BoardState[] = [repeatedState, repeatedState];
+        const result = evaluateGameResult(repeatedState, boardStateHistory);
+
+        expect(result.type).toBe("ongoing");
+      });
+
+      it("should consider activeColor when detecting threefold repetition", () => {
+        const state1: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 0,
+          fullMoveNumber: 1
+        };
+
+        const state2: BoardState = {
+          ...state1,
+          activeColor: "black"
+        };
+
+        // Same squares but different activeColor should not be considered the same
+        const boardStateHistory: BoardState[] = [state1, state2, state1];
+        const result = evaluateGameResult(state1, boardStateHistory);
+
+        expect(result.type).toBe("ongoing");
+      });
+
+      it("should consider castlingRights when detecting threefold repetition", () => {
+        const state1: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: true,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 0,
+          fullMoveNumber: 1
+        };
+
+        const state2: BoardState = {
+          ...state1,
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          }
+        };
+
+        // Same squares but different castlingRights should not be considered the same
+        const boardStateHistory: BoardState[] = [state1, state2, state1];
+        const result = evaluateGameResult(state1, boardStateHistory);
+
+        expect(result.type).toBe("ongoing");
+      });
+
+      it("should consider enPassantTarget when detecting threefold repetition", () => {
+        const state1: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: "e3",
+          halfMoveClock: 0,
+          fullMoveNumber: 1
+        };
+
+        const state2: BoardState = {
+          ...state1,
+          enPassantTarget: null
+        };
+
+        // Same squares but different enPassantTarget should not be considered the same
+        const boardStateHistory: BoardState[] = [state1, state2, state1];
+        const result = evaluateGameResult(state1, boardStateHistory);
+
+        expect(result.type).toBe("ongoing");
+      });
+    });
+
+    describe("50-move rule detection", () => {
+      it("should detect draw when halfMoveClock reaches 50", () => {
+        const boardState: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }],
+            ["a1", { color: "white", type: "rook" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 50,
+          fullMoveNumber: 1
+        };
+        const result = evaluateGameResult(boardState);
+
+        expect(result.type).toBe("draw");
+        if (result.type === "draw") {
+          expect(result.reason).toBe("50-move rule");
+        }
+      });
+
+      it("should not detect draw when halfMoveClock is less than 50", () => {
+        const boardState: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 49,
+          fullMoveNumber: 1
+        };
+        const result = evaluateGameResult(boardState);
+
+        expect(result.type).toBe("ongoing");
+      });
+
+      it("should detect draw when halfMoveClock exceeds 50", () => {
+        const boardState: BoardState = {
+          ...createInitialBoardState(),
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: false,
+            whiteQueenSide: false,
+            blackKingSide: false,
+            blackQueenSide: false
+          },
+          enPassantTarget: null,
+          halfMoveClock: 51,
+          fullMoveNumber: 1
+        };
+        const result = evaluateGameResult(boardState);
+
+        expect(result.type).toBe("draw");
+        if (result.type === "draw") {
+          expect(result.reason).toBe("50-move rule");
+        }
+      });
+    });
   });
 });

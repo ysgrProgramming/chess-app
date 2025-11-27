@@ -765,12 +765,58 @@ function updateCastlingRights(
 }
 
 /**
- * Evaluates the game result (checkmate, stalemate, or ongoing).
+ * Serializes a board state to a string for comparison.
+ * Includes squares, activeColor, castlingRights, and enPassantTarget.
+ */
+function serializeBoardState(boardState: BoardState): string {
+  // Sort squares by position for consistent serialization
+  const sortedSquares = Array.from(boardState.squares.entries()).sort(([a], [b]) => {
+    if (a[0] !== b[0]) return a[0].localeCompare(b[0]);
+    return parseInt(a[1], 10) - parseInt(b[1], 10);
+  });
+  const squaresStr = sortedSquares
+    .map(([square, piece]) => `${square}:${piece.color}:${piece.type}`)
+    .join(",");
+  const castlingStr = JSON.stringify(boardState.castlingRights);
+  return `${squaresStr}|${boardState.activeColor}|${castlingStr}|${boardState.enPassantTarget}`;
+}
+
+/**
+ * Checks if the same board state has occurred three times in history.
+ */
+function isThreefoldRepetition(boardState: BoardState, boardStateHistory: BoardState[]): boolean {
+  const currentStateStr = serializeBoardState(boardState);
+  let count = 0;
+  for (const state of boardStateHistory) {
+    if (serializeBoardState(state) === currentStateStr) {
+      count++;
+    }
+  }
+  return count >= 3;
+}
+
+/**
+ * Evaluates the game result (checkmate, stalemate, draw by threefold repetition,
+ * draw by 50-move rule, or ongoing).
  *
  * @param boardState - The current board state.
+ * @param boardStateHistory - Optional history of board states for threefold repetition detection.
  * @returns The game result.
  */
-export function evaluateGameResult(boardState: BoardState): GameResult {
+export function evaluateGameResult(
+  boardState: BoardState,
+  boardStateHistory?: BoardState[]
+): GameResult {
+  // Check for 50-move rule first (before checking legal moves)
+  if (boardState.halfMoveClock >= 50) {
+    return { type: "draw", reason: "50-move rule" };
+  }
+
+  // Check for threefold repetition if history is provided
+  if (boardStateHistory && isThreefoldRepetition(boardState, boardStateHistory)) {
+    return { type: "draw", reason: "threefold repetition" };
+  }
+
   const activeColor = boardState.activeColor;
   const inCheck = isKingInCheck(boardState, activeColor);
 
