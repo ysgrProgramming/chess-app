@@ -9,7 +9,7 @@ import { downloadTextFile } from "../lib/download";
 import { movesToText, movesToPGN } from "../lib/kifuExport";
 import { moveToSAN } from "../lib/notation";
 import { createInitialBoardState, applyMove } from "../lib/chessEngine";
-import type { Move } from "../lib/types";
+import type { BoardState, Move } from "../lib/types";
 
 /**
  * MoveList component props.
@@ -19,30 +19,63 @@ export interface MoveListProps {
    * Array of moves in the game history.
    */
   readonly moves: readonly Move[];
+  /**
+   * Current move index (0-based). -1 means initial position.
+   */
+  readonly currentMoveIndex: number;
+  /**
+   * Callback invoked when a move is clicked to jump to that position.
+   * @param moveIndex - The index of the move to jump to (0-based, -1 for initial position)
+   */
+  readonly onMoveClick?: (moveIndex: number) => void;
 }
 
 /**
  * MoveList component that displays chess moves in SAN notation.
  */
-export const MoveList: React.FC<MoveListProps> = ({ moves }) => {
+export const MoveList: React.FC<MoveListProps> = ({ moves, currentMoveIndex, onMoveClick }) => {
   // Reconstruct board state for each move to generate SAN notation
   let currentBoardState = createInitialBoardState();
-  const movePairs: Array<{ white: string; black?: string }> = [];
+  const movePairs: Array<{
+    white: string;
+    black?: string;
+    whiteMoveIndex: number;
+    blackMoveIndex?: number;
+  }> = [];
 
+  // moves is always a slice from the beginning of moveHistory, so indices match
   for (let i = 0; i < moves.length; i += 2) {
     const whiteMove = moves[i];
     const blackMove = moves[i + 1];
 
-    const whiteSAN = moveToSAN(currentBoardState, whiteMove);
-    currentBoardState = applyMove(currentBoardState, whiteMove);
+    const whitePiece = currentBoardState.squares.get(whiteMove.from);
+    if (!whitePiece) {
+      break;
+    }
+    const whiteState: BoardState = { ...currentBoardState, activeColor: whitePiece.color };
+    const whiteSAN = moveToSAN(whiteState, whiteMove);
+    currentBoardState = applyMove(whiteState, whiteMove);
 
     let blackSAN: string | undefined;
+    let blackMoveIndex: number | undefined;
     if (blackMove) {
-      blackSAN = moveToSAN(currentBoardState, blackMove);
-      currentBoardState = applyMove(currentBoardState, blackMove);
+      const blackPiece = currentBoardState.squares.get(blackMove.from);
+      if (!blackPiece) {
+        break;
+      }
+      const blackState: BoardState = { ...currentBoardState, activeColor: blackPiece.color };
+      blackSAN = moveToSAN(blackState, blackMove);
+      currentBoardState = applyMove(blackState, blackMove);
+      blackMoveIndex = i + 1;
     }
 
-    movePairs.push({ white: whiteSAN, black: blackSAN });
+    // Store the index in the moves array, which matches moveHistory index
+    movePairs.push({
+      white: whiteSAN,
+      black: blackSAN,
+      whiteMoveIndex: i,
+      blackMoveIndex
+    });
   }
 
   /**
@@ -103,13 +136,37 @@ export const MoveList: React.FC<MoveListProps> = ({ moves }) => {
         </div>
       </div>
       <ol className="move-list" role="list" aria-label="Move list">
-        {movePairs.map((pair, index) => (
-          <li key={index} className="move-pair">
-            <span className="move-number">{index + 1}.</span>
-            <span className="move-white">{pair.white}</span>
-            {pair.black && <span className="move-black">{pair.black}</span>}
-          </li>
-        ))}
+        {movePairs.map((pair, index) => {
+          const isWhiteCurrent = pair.whiteMoveIndex === currentMoveIndex;
+          const isBlackCurrent = pair.blackMoveIndex === currentMoveIndex;
+          return (
+            <li key={index} className="move-pair">
+              <span className="move-number">{index + 1}.</span>
+              <span
+                className={`move-white ${isWhiteCurrent ? "current-move" : ""} ${
+                  onMoveClick ? "clickable-move" : ""
+                }`}
+                onClick={() => onMoveClick?.(pair.whiteMoveIndex)}
+                role={onMoveClick ? "button" : undefined}
+                aria-label={onMoveClick ? `Jump to move ${pair.whiteMoveIndex + 1}` : undefined}
+              >
+                {pair.white}
+              </span>
+              {pair.black && (
+                <span
+                  className={`move-black ${isBlackCurrent ? "current-move" : ""} ${
+                    onMoveClick ? "clickable-move" : ""
+                  }`}
+                  onClick={() => onMoveClick?.(pair.blackMoveIndex!)}
+                  role={onMoveClick ? "button" : undefined}
+                  aria-label={onMoveClick ? `Jump to move ${pair.blackMoveIndex! + 1}` : undefined}
+                >
+                  {pair.black}
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
