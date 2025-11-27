@@ -231,13 +231,18 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         // Clicking the same square: deselect
         setSelectedSquare(null);
       } else {
-        // Check if clicking on another piece of the same color
-        const piece = boardState.squares.get(square);
-        if (piece) {
-          // Select the new piece instead
+        const targetPiece = boardState.squares.get(square);
+        const sourcePiece = boardState.squares.get(selectedSquare);
+
+        if (targetPiece && sourcePiece && targetPiece.color !== sourcePiece.color) {
+          // Attempt capture on opponent piece
+          handleMoveAttempt(selectedSquare, square);
+          setSelectedSquare(null);
+        } else if (targetPiece && targetPiece.color === sourcePiece?.color) {
+          // Select the new piece if it's the same color
           setSelectedSquare(square);
         } else {
-          // Second click: attempt move
+          // Second click: attempt move to empty square
           handleMoveAttempt(selectedSquare, square);
           setSelectedSquare(null);
         }

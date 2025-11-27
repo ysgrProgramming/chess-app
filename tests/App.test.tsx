@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, test, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../src/App";
@@ -1496,9 +1496,7 @@ describe("App", () => {
   });
 
   describe("Capture moves integration (Issue #44)", () => {
-    // TODO: Unskip these tests once the capture bug is fixed in Issue #44
-    // These tests currently fail because captures are not working correctly
-    it.skip("should reflect capture on board and move list - knight capture", async () => {
+    it("should reflect capture on board and move list - knight capture", async () => {
       const user = userEvent.setup();
       renderApp();
 
@@ -1528,7 +1526,7 @@ describe("App", () => {
       await user.click(f3Square);
 
       await waitFor(() => {
-        expect(f3Square).toHaveTextContent("♘");
+        expect(within(f3Square).getByLabelText(/white knight/i)).toBeInTheDocument();
       });
 
       const b8Square = screen.getByLabelText(/square b8/i);
@@ -1537,13 +1535,13 @@ describe("App", () => {
       await user.click(c6Square);
 
       await waitFor(() => {
-        expect(c6Square).toHaveTextContent("♞");
+        expect(within(c6Square).getByLabelText(/black knight/i)).toBeInTheDocument();
       });
 
       // Now attempt capture: Nxe5 (knight on f3 captures pawn on e5)
       // Verify initial state: black pawn is on e5
       expect(e5Square).toHaveTextContent("♟");
-      expect(f3Square).toHaveTextContent("♘");
+      expect(within(f3Square).getByLabelText(/white knight/i)).toBeInTheDocument();
 
       // Perform capture
       await user.click(f3Square);
@@ -1552,8 +1550,8 @@ describe("App", () => {
       await waitFor(
         () => {
           // Verify capture is reflected on board: knight should be on e5, pawn should be gone
-          expect(e5Square).toHaveTextContent("♘");
-          expect(f3Square).not.toHaveTextContent("♘");
+          expect(within(e5Square).getByLabelText(/white knight/i)).toBeInTheDocument();
+          expect(within(f3Square).queryByLabelText(/white knight/i)).not.toBeInTheDocument();
           // Verify capture is reflected in move list with capture notation (Nxe5 format)
           const moveList = screen.getByRole("list", { name: /move list|kifu/i });
           expect(moveList.textContent).toMatch(/Nxe5/);
@@ -1562,9 +1560,7 @@ describe("App", () => {
       );
     });
 
-    // TODO: Unskip these tests once the capture bug is fixed in Issue #44
-    // These tests currently fail because captures are not working correctly
-    it.skip("should reflect capture on board and move list - pawn capture", async () => {
+    it("should reflect capture on board and move list - pawn capture", async () => {
       const user = userEvent.setup();
       renderApp();
 
