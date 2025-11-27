@@ -1123,4 +1123,237 @@ describe("App", () => {
       }
     });
   });
+
+  describe("Draw offer functionality", () => {
+    it("should render draw offer and resign buttons for both colors", () => {
+      renderApp();
+
+      expect(screen.getByRole("button", { name: /offer draw/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /resign/i })).toBeInTheDocument();
+    });
+
+    it("should show draw offer controls only when game is ongoing", async () => {
+      const user = userEvent.setup();
+
+      // Create a checkmate position
+      const checkmatePreMoveBoard: BoardState = {
+        squares: new Map([
+          ["a1", { color: "white", type: "king" }],
+          ["b3", { color: "black", type: "queen" }],
+          ["c3", { color: "black", type: "king" }]
+        ]),
+        activeColor: "black",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      const createInitialBoardStateSpy = vi
+        .spyOn(chessEngine, "createInitialBoardState")
+        .mockReturnValue(checkmatePreMoveBoard);
+
+      try {
+        renderApp();
+
+        // Initially, buttons should be visible and enabled
+        const drawButton = screen.getByRole("button", { name: /offer draw/i });
+        const resignButton = screen.getByRole("button", { name: /resign/i });
+        expect(drawButton).toBeInTheDocument();
+        expect(resignButton).toBeInTheDocument();
+        expect(drawButton).not.toBeDisabled();
+        expect(resignButton).not.toBeDisabled();
+
+        // Deliver checkmate
+        const b3Square = screen.getByLabelText(/square b3/i);
+        const b2Square = screen.getByLabelText(/square b2/i);
+        await user.click(b3Square);
+        await user.click(b2Square);
+
+        await waitFor(() => {
+          expect(screen.getByRole("status")).toHaveTextContent("Black wins by checkmate");
+        });
+
+        // Draw offer and resign buttons should still be visible (for UI consistency)
+        // But they should be disabled
+        expect(drawButton).toBeDisabled();
+        expect(resignButton).toBeDisabled();
+      } finally {
+        createInitialBoardStateSpy.mockRestore();
+      }
+    });
+
+    it("should allow player to offer a draw", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      const drawButton = screen.getByRole("button", { name: /offer draw/i });
+      await user.click(drawButton);
+
+      // Should show draw offer notification or UI state
+      await waitFor(() => {
+        expect(screen.getByText(/draw offer/i)).toBeInTheDocument();
+      });
+    });
+
+    it("should allow accepting a draw offer and end game as draw", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // White offers draw
+      const drawButton = screen.getByRole("button", { name: /offer draw/i });
+      await user.click(drawButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/draw offer/i)).toBeInTheDocument();
+      });
+
+      // Black accepts draw
+      const acceptButton = screen.getByRole("button", { name: /accept draw/i });
+      await user.click(acceptButton);
+
+      // Game should end as draw
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(/draw/i);
+      });
+
+      // Move list should show draw result
+      await waitFor(() => {
+        expect(screen.getByText(/1\/2-1\/2.*draw agreed/i)).toBeInTheDocument();
+      });
+
+      // Board should be non-interactive
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      // No move should be added
+      await waitFor(() => {
+        expect(screen.queryByText(/e4/)).not.toBeInTheDocument();
+      });
+    });
+
+    it("should allow declining a draw offer and continue game", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // White offers draw
+      const drawButton = screen.getByRole("button", { name: /offer draw/i });
+      await user.click(drawButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/draw offer/i)).toBeInTheDocument();
+      });
+
+      // Black declines draw
+      const declineButton = screen.getByRole("button", { name: /decline draw/i });
+      await user.click(declineButton);
+
+      // Draw offer UI should disappear
+      await waitFor(() => {
+        expect(screen.queryByText(/draw offer/i)).not.toBeInTheDocument();
+      });
+
+      // Game should continue - make a move
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(screen.getByText(/e4/)).toBeInTheDocument();
+      });
+    });
+
+    it("should expire draw offer when a move is made", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // White offers draw
+      const drawButton = screen.getByRole("button", { name: /offer draw/i });
+      await user.click(drawButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/draw offer/i)).toBeInTheDocument();
+      });
+
+      // Make a move (should expire the draw offer)
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      // Draw offer should disappear
+      await waitFor(() => {
+        expect(screen.queryByText(/draw offer/i)).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Resign functionality", () => {
+    it("should allow player to resign and end game", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // White resigns
+      const resignButton = screen.getByRole("button", { name: /resign/i });
+      await user.click(resignButton);
+
+      // Game should end with Black as winner
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(/black.*wins/i);
+      });
+
+      // Move list should show resignation result
+      await waitFor(() => {
+        expect(screen.getByText(/0-1.*white resigned/i)).toBeInTheDocument();
+      });
+
+      // Board should be non-interactive
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      // No move should be added
+      await waitFor(() => {
+        expect(screen.queryByText(/e4/)).not.toBeInTheDocument();
+      });
+    });
+
+    it("should allow black to resign and end game with white as winner", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make one move so it's Black's turn
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(screen.getByText(/e4/)).toBeInTheDocument();
+      });
+
+      // Black resigns
+      const resignButton = screen.getByRole("button", { name: /resign/i });
+      await user.click(resignButton);
+
+      // Game should end with White as winner
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(/white.*wins/i);
+      });
+
+      // Move list should show resignation result
+      await waitFor(() => {
+        expect(screen.getByText(/1-0.*black resigned/i)).toBeInTheDocument();
+      });
+    });
+  });
 });

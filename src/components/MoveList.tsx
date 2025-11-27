@@ -9,7 +9,7 @@ import { downloadTextFile } from "../lib/download";
 import { movesToText, movesToPGN } from "../lib/kifuExport";
 import { moveToSAN } from "../lib/notation";
 import { createInitialBoardState, applyMove } from "../lib/chessEngine";
-import type { BoardState, Move } from "../lib/types";
+import type { BoardState, Move, GameResult } from "../lib/types";
 
 /**
  * MoveList component props.
@@ -24,6 +24,11 @@ export interface MoveListProps {
    */
   readonly currentMoveIndex: number;
   /**
+   * Game result (ongoing, checkmate, stalemate, draw, or resignation).
+   * If omitted, the game is treated as ongoing (no result text shown).
+   */
+  readonly gameResult?: GameResult;
+  /**
    * Callback invoked when a move is clicked to jump to that position.
    * @param moveIndex - The index of the move to jump to (0-based, -1 for initial position)
    */
@@ -31,9 +36,31 @@ export interface MoveListProps {
 }
 
 /**
+ * Formats game result for display in move list.
+ */
+function formatGameResult(gameResult: GameResult): string {
+  if (gameResult.type === "draw") {
+    return "1/2-1/2 (draw agreed)";
+  }
+  if (gameResult.type === "resignation") {
+    if (gameResult.winner === "white") {
+      return "1-0 (Black resigned)";
+    }
+    return "0-1 (White resigned)";
+  }
+  return "";
+}
+
+/**
  * MoveList component that displays chess moves in SAN notation.
  */
-export const MoveList: React.FC<MoveListProps> = ({ moves, currentMoveIndex, onMoveClick }) => {
+export const MoveList: React.FC<MoveListProps> = ({
+  moves,
+  currentMoveIndex,
+  gameResult,
+  onMoveClick
+}) => {
+  const effectiveGameResult: GameResult = gameResult ?? { type: "ongoing" };
   // Reconstruct board state for each move to generate SAN notation
   let currentBoardState = createInitialBoardState();
   const movePairs: Array<{
@@ -83,14 +110,14 @@ export const MoveList: React.FC<MoveListProps> = ({ moves, currentMoveIndex, onM
    */
   const handleCopyMoves = useCallback(async () => {
     try {
-      const text = movesToText(moves);
+      const text = movesToText(moves, gameResult);
       await copyTextToClipboard(text);
     } catch (error) {
       // Silently handle clipboard errors (e.g., permission denied)
       // In a production app, you might want to show a toast notification
       console.error("Failed to copy moves to clipboard:", error);
     }
-  }, [moves]);
+  }, [moves, gameResult]);
 
   /**
    * Handles downloading moves as a file.
@@ -99,7 +126,8 @@ export const MoveList: React.FC<MoveListProps> = ({ moves, currentMoveIndex, onM
    */
   const handleDownloadMoves = useCallback(
     (format: "text" | "pgn" = "text") => {
-      const content = format === "pgn" ? movesToPGN(moves) : movesToText(moves);
+      const content =
+        format === "pgn" ? movesToPGN(moves, gameResult) : movesToText(moves, gameResult);
       const extension = format === "pgn" ? "pgn" : "txt";
       const mimeType = format === "pgn" ? "application/x-chess-pgn" : "text/plain";
 
@@ -109,7 +137,7 @@ export const MoveList: React.FC<MoveListProps> = ({ moves, currentMoveIndex, onM
 
       downloadTextFile(filename, content, mimeType);
     },
-    [moves]
+    [moves, gameResult]
   );
 
   return (
@@ -168,6 +196,11 @@ export const MoveList: React.FC<MoveListProps> = ({ moves, currentMoveIndex, onM
           );
         })}
       </ol>
+      {effectiveGameResult.type !== "ongoing" && (
+        <div className="game-result-text">
+          {formatGameResult(effectiveGameResult)}
+        </div>
+      )}
     </div>
   );
 };

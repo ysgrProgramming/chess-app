@@ -32,12 +32,18 @@ interface GameStateContextValue {
   readonly currentBoardState: BoardState;
   readonly gameResult: GameResult;
   readonly isGameOver: boolean;
+  readonly drawOfferBy: Color | null;
+  readonly activeColor: Color;
   readonly handleMove: (move: Move) => void;
   readonly handleUndo: () => void;
   readonly handleReset: () => void;
   readonly handleJumpToMove: (targetIndex: number) => void;
   readonly handlePreviousMove: () => void;
   readonly handleNextMove: () => void;
+  readonly handleOfferDraw: () => void;
+  readonly handleAcceptDraw: () => void;
+  readonly handleDeclineDraw: () => void;
+  readonly handleResign: () => void;
   readonly canUndo: boolean;
   readonly canGoToPreviousMove: boolean;
   readonly canGoToNextMove: boolean;
@@ -99,15 +105,36 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
   }, [state.moveHistory, state.currentMoveIndex, state.isPreviewing]);
 
   /**
-   * Evaluates the current game result (ongoing, checkmate, or stalemate).
+   * Computes the active color based on move history.
+   */
+  const activeColor = useMemo((): Color => {
+    // White starts, so:
+    // currentMoveIndex = -1 (initial) → White's turn
+    // currentMoveIndex = 0 (after white's first move) → Black's turn
+    // currentMoveIndex = 1 (after black's first move) → White's turn
+    // So: (currentMoveIndex + 1) % 2 === 0 means White's turn
+    if (state.currentMoveIndex === -1) {
+      return "white";
+    }
+    return (state.currentMoveIndex + 1) % 2 === 0 ? "white" : "black";
+  }, [state.currentMoveIndex]);
+
+  /**
+   * Evaluates the current game result (ongoing, checkmate, stalemate, draw, or resignation).
    * Game over is only considered in the canonical position (not while previewing).
+   * Draw and resignation results come from state.gameResult.
    */
   const gameResult = useMemo((): GameResult => {
     if (state.isPreviewing) {
       return { type: "ongoing" };
     }
+    // If state has a draw or resignation result, use that
+    if (state.gameResult.type === "draw" || state.gameResult.type === "resignation") {
+      return state.gameResult;
+    }
+    // Otherwise, evaluate from board state (checkmate/stalemate)
     return evaluateGameResult(currentBoardState);
-  }, [currentBoardState, state.isPreviewing]);
+  }, [currentBoardState, state.isPreviewing, state.gameResult]);
 
   const isGameOver = gameResult.type !== "ongoing";
 
@@ -160,6 +187,43 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     dispatch({ type: "NEXT_MOVE" });
   }, []);
 
+  /**
+   * Handles offering a draw.
+   */
+  const handleOfferDraw = useCallback(() => {
+    if (isGameOver) {
+      return;
+    }
+    dispatch({ type: "OFFER_DRAW" });
+  }, [isGameOver]);
+
+  /**
+   * Handles accepting a draw offer.
+   */
+  const handleAcceptDraw = useCallback(() => {
+    if (isGameOver || !state.drawOfferBy) {
+      return;
+    }
+    dispatch({ type: "ACCEPT_DRAW" });
+  }, [isGameOver, state.drawOfferBy]);
+
+  /**
+   * Handles declining a draw offer.
+   */
+  const handleDeclineDraw = useCallback(() => {
+    dispatch({ type: "DECLINE_DRAW" });
+  }, []);
+
+  /**
+   * Handles resigning the game.
+   */
+  const handleResign = useCallback(() => {
+    if (isGameOver) {
+      return;
+    }
+    dispatch({ type: "RESIGN" });
+  }, [isGameOver]);
+
   const canUndo = state.currentMoveIndex >= 0;
   const canGoToPreviousMove = state.currentMoveIndex >= 0;
   const canGoToNextMove =
@@ -174,12 +238,18 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     currentBoardState,
     gameResult,
     isGameOver,
+    drawOfferBy: state.drawOfferBy,
+    activeColor,
     handleMove,
     handleUndo,
     handleReset,
     handleJumpToMove,
     handlePreviousMove,
     handleNextMove,
+    handleOfferDraw,
+    handleAcceptDraw,
+    handleDeclineDraw,
+    handleResign,
     canUndo,
     canGoToPreviousMove,
     canGoToNextMove,
