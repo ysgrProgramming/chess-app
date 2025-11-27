@@ -52,9 +52,22 @@ export function moveToSAN(boardState: BoardState, move: Move): string {
  */
 function formatPawnMove(boardState: BoardState, move: Move, piece: Piece): string {
   const destinationPiece = boardState.squares.get(move.to);
-  const isCapture = destinationPiece !== undefined && destinationPiece.color !== piece.color;
   const fileFrom = move.from[0];
-  const promotion = move.promotion;
+  const toRank = parseInt(move.to[1], 10);
+
+  // Check for en passant capture
+  const isEnPassant = boardState.enPassantTarget === move.to;
+
+  // Check for regular capture (destination has opponent piece)
+  const isRegularCapture = destinationPiece !== undefined && destinationPiece.color !== piece.color;
+
+  // En passant is always a capture
+  const isCapture = isEnPassant || isRegularCapture;
+
+  // Check for promotion (pawn reaches 8th rank for white or 1st rank for black)
+  const isPromotion =
+    (piece.color === "white" && toRank === 8) || (piece.color === "black" && toRank === 1);
+  const promotionType = move.promotion || (isPromotion ? "queen" : undefined);
 
   let san = "";
 
@@ -64,8 +77,8 @@ function formatPawnMove(boardState: BoardState, move: Move, piece: Piece): strin
     san += move.to;
   }
 
-  if (promotion) {
-    san += `=${PIECE_SYMBOLS[promotion]}`;
+  if (promotionType) {
+    san += `=${PIECE_SYMBOLS[promotionType]}`;
   }
 
   return san;

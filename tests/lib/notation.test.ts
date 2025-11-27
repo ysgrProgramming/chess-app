@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 import { moveToSAN } from "../../src/lib/notation";
 import { createInitialBoardState, applyMove } from "../../src/lib/chessEngine";
-import type { BoardState, Move } from "../../src/lib/types";
+import type { BoardState, Move, CastlingRights } from "../../src/lib/types";
 
 describe("moveToSAN", () => {
   let boardState: BoardState;
@@ -33,9 +33,85 @@ describe("moveToSAN", () => {
       expect(san).toBe("exd5");
     });
 
-    it.skip("should convert pawn promotion to SAN", () => {
-      // TODO: Implement promotion test after basic functionality is working
-      // Promotion requires complex board setup and will be tested separately
+    it("should convert pawn promotion to SAN", () => {
+      // Create a board state with white pawn on e7, e8 is empty
+      const castlingRights: CastlingRights = {
+        whiteKingSide: false,
+        whiteQueenSide: false,
+        blackKingSide: false,
+        blackQueenSide: false
+      };
+      boardState = {
+        squares: new Map([
+          ["e1", { color: "white", type: "king" }],
+          ["e7", { color: "white", type: "pawn" }],
+          ["d8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights,
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+      // Move white pawn from e7 to e8 and promote to queen
+      const move: Move = { from: "e7", to: "e8", promotion: "queen" };
+      const san = moveToSAN(boardState, move);
+      expect(san).toBe("e8=Q");
+    });
+
+    it("should convert pawn capture promotion to SAN", () => {
+      // Create a board state with white pawn on d7, black queen on d8
+      const castlingRights: CastlingRights = {
+        whiteKingSide: false,
+        whiteQueenSide: false,
+        blackKingSide: false,
+        blackQueenSide: false
+      };
+      boardState = {
+        squares: new Map([
+          ["e1", { color: "white", type: "king" }],
+          ["d7", { color: "white", type: "pawn" }],
+          ["d8", { color: "black", type: "queen" }],
+          ["e8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights,
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+      // White pawn captures d8 and promotes to knight
+      const move: Move = { from: "d7", to: "d8", promotion: "knight" };
+      const san = moveToSAN(boardState, move);
+      expect(san).toBe("dxd8=N");
+    });
+
+    it("should convert white en passant capture to SAN", () => {
+      // Setup: white pawn on e4, black pawn just moved d7 to d5 (two squares)
+      // After black's d7->d5, enPassantTarget is set to d6
+      // White pawn captures en passant immediately: e4 to d6 (enPassantTarget)
+      boardState = applyMove(boardState, { from: "e2", to: "e4" });
+      boardState = applyMove(boardState, { from: "d7", to: "d5" });
+      // Now white pawn on e4, black pawn on d5, enPassantTarget should be d6
+      // White pawn captures en passant: e4 to d6 (enPassantTarget)
+      const move: Move = { from: "e4", to: "d6" };
+      const san = moveToSAN(boardState, move);
+      expect(san).toBe("exd6");
+    });
+
+    it("should convert black en passant capture to SAN", () => {
+      // Setup: black pawn on d5, white pawn just moved e2 to e4 (two squares)
+      // After white's e2->e4, enPassantTarget is set to e3
+      // Black pawn captures en passant immediately: d5 to e3 (enPassantTarget)
+      // Note: We need to set up the board so black pawn is on d5 BEFORE white moves
+      boardState = applyMove(boardState, { from: "d2", to: "d4" });
+      boardState = applyMove(boardState, { from: "d7", to: "d5" });
+      boardState = applyMove(boardState, { from: "e2", to: "e4" });
+      // Now black pawn on d5, white pawn on e4, enPassantTarget should be e3
+      // Black pawn captures en passant: d5 to e3 (enPassantTarget)
+      const move: Move = { from: "d5", to: "e3" };
+      const san = moveToSAN(boardState, move);
+      expect(san).toBe("dxe3");
     });
   });
 
