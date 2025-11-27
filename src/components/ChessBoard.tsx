@@ -87,6 +87,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   const [touchStartPosition, setTouchStartPosition] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [touchStartSquare, setTouchStartSquare] = useState<Square | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [pendingPromotionMove, setPendingPromotionMove] = useState<{
     from: Square;
@@ -99,6 +100,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       setSelectedSquare(null);
       setDraggedSquare(null);
       setTouchStartPosition(null);
+      setTouchStartSquare(null);
       setIsDragging(false);
       setPendingPromotionMove(null);
     }
@@ -212,38 +214,47 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
 
   /**
    * Handles piece selection (for tap/click mode).
+   * @param square - The square that was clicked/tapped
+   * @param currentSelectedSquare - Optional override for selectedSquare (used for touch events)
    */
   const handleSquareClick = useCallback(
-    (square: Square) => {
+    (square: Square, currentSelectedSquare?: Square | null) => {
       if (!isInteractive) {
         return;
       }
-      if (!isInteractive) {
-        return;
-      }
-      if (selectedSquare === null) {
+      // Use currentSelectedSquare if provided (for touch events), otherwise use selectedSquare
+      const effectiveSelectedSquare =
+        currentSelectedSquare !== undefined ? currentSelectedSquare : selectedSquare;
+
+      if (effectiveSelectedSquare === null) {
         // First click: select source square
         const piece = boardState.squares.get(square);
         if (piece) {
           setSelectedSquare(square);
         }
-      } else if (selectedSquare === square) {
+      } else if (effectiveSelectedSquare === square) {
         // Clicking the same square: deselect
         setSelectedSquare(null);
       } else {
+        // Different square: handle move or capture
         const targetPiece = boardState.squares.get(square);
-        const sourcePiece = boardState.squares.get(selectedSquare);
+        const sourcePiece = boardState.squares.get(effectiveSelectedSquare);
 
-        if (targetPiece && sourcePiece && targetPiece.color !== sourcePiece.color) {
+        if (!sourcePiece) {
+          // Source square has no piece (shouldn't happen, but handle gracefully)
+          return;
+        }
+
+        if (targetPiece && targetPiece.color !== sourcePiece.color) {
           // Attempt capture on opponent piece
-          handleMoveAttempt(selectedSquare, square);
+          handleMoveAttempt(effectiveSelectedSquare, square);
           setSelectedSquare(null);
-        } else if (targetPiece && targetPiece.color === sourcePiece?.color) {
+        } else if (targetPiece && targetPiece.color === sourcePiece.color) {
           // Select the new piece if it's the same color
           setSelectedSquare(square);
         } else {
           // Second click: attempt move to empty square
-          handleMoveAttempt(selectedSquare, square);
+          handleMoveAttempt(effectiveSelectedSquare, square);
           setSelectedSquare(null);
         }
       }
@@ -302,22 +313,16 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   /**
    * Handles touch start event for mobile gesture detection.
    */
-  const handleTouchStart = useCallback(
-    (event: React.TouchEvent, square: Square) => {
-      const touch = event.touches[0];
-      if (touch) {
-        setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
-        setIsDragging(false);
-
-        // Select piece on touch start if it's a piece square
-        const piece = boardState.squares.get(square);
-        if (piece) {
-          setSelectedSquare(square);
-        }
-      }
-    },
-    [boardState]
-  );
+  const handleTouchStart = useCallback((event: React.TouchEvent, square: Square) => {
+    const touch = event.touches[0];
+    if (touch) {
+      setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
+      setTouchStartSquare(square);
+      setIsDragging(false);
+      // Don't update selection here - let handleTouchEnd handle it
+      // This ensures we have the correct selection state when handleSquareClick is called
+    }
+  }, []);
 
   /**
    * Handles touch move event to distinguish between drag and scroll gestures.
@@ -349,6 +354,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         setIsDragging(false);
         setDraggedSquare(null);
         setSelectedSquare(null);
+        setTouchStartSquare(null);
       }
     },
     [touchStartPosition]
@@ -359,7 +365,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
    */
   const handleTouchEnd = useCallback(
     (event: React.TouchEvent, square: Square) => {
-      if (!touchStartPosition) {
+      if (!touchStartPosition || !touchStartSquare) {
         return;
       }
 
@@ -381,16 +387,29 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       }
       // If it was a tap (small movement), handle as click
       else if (deltaX < GESTURE_THRESHOLD && deltaY < GESTURE_THRESHOLD) {
-        handleSquareClick(square);
+        // Use touchStartSquare to determine the actual square that was tapped
+        // This ensures we have the correct selection state when handleSquareClick is called
+        const tappedSquare = touchStartSquare;
+
+        // Use current selectedSquare state directly
+        // handleSquareClick will handle the logic:
+        // - If no selection and tapped square has a piece: select it
+        // - If selected square equals tapped square: deselect
+        // - If selected square differs and tapped square has opponent piece: capture
+        // - If selected square differs and tapped square has same-color piece: update selection
+        // - If selected square differs and tapped square is empty: move
+        handleSquareClick(tappedSquare);
       }
 
       // Reset touch state
       setTouchStartPosition(null);
+      setTouchStartSquare(null);
       setIsDragging(false);
       setDraggedSquare(null);
     },
     [
       touchStartPosition,
+      touchStartSquare,
       isDragging,
       selectedSquare,
       boardState,
