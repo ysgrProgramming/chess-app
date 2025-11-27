@@ -270,4 +270,215 @@ describe("App", () => {
       });
     });
   });
+
+  describe("Local two-player game flow (Issue #8)", () => {
+    it("should display turn indicator at all times", () => {
+      render(<App />);
+      // Initially white's turn
+      const turnIndicator = screen.getByText(/white/i);
+      expect(turnIndicator).toBeInTheDocument();
+      expect(turnIndicator.textContent).toMatch(/white.*turn/i);
+    });
+
+    it("should allow two players to alternate moves on the same device", async () => {
+      const user = userEvent.setup();
+      render(<App />);
+
+      // Player 1 (White) makes first move: e2 -> e4
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+        // Turn should switch to Black
+        const turnIndicator = screen.getByText(/black/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/black.*turn/i);
+      });
+
+      // Player 2 (Black) makes second move: e7 -> e5
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+        // Turn should switch back to White
+        const turnIndicator = screen.getByText(/white/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/white.*turn/i);
+      });
+
+      // Player 1 (White) makes third move: g1 -> f3
+      const g1Square = screen.getByLabelText(/square g1/i);
+      const f3Square = screen.getByLabelText(/square f3/i);
+      await user.click(g1Square);
+      await user.click(f3Square);
+
+      await waitFor(() => {
+        expect(f3Square).toHaveTextContent("♞");
+        // Turn should switch to Black
+        const turnIndicator = screen.getByText(/black/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/black.*turn/i);
+      });
+    });
+
+    it("should prevent players from moving opponent pieces", async () => {
+      const user = userEvent.setup();
+      render(<App />);
+
+      // White's turn - try to move black piece (should fail)
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+
+      // Verify initial state: black pawn is on e7
+      expect(e7Square).toHaveTextContent("♟");
+      expect(e5Square).not.toHaveTextContent("♟");
+
+      // Click black pawn (e7) - it can be selected but move will be rejected
+      await user.click(e7Square);
+      // Click destination (e5) - move should be rejected
+      await user.click(e5Square);
+
+      await waitFor(
+        () => {
+          // Black pawn should still be on e7 (move rejected)
+          // Note: The piece might be temporarily selected, but the move should not execute
+          const e7SquareAfterAttempt = screen.getByLabelText(/square e7/i);
+          expect(e7SquareAfterAttempt.textContent).toContain("♟");
+          expect(e5Square).not.toHaveTextContent("♟");
+          // Turn should still be White (no move was made)
+          const turnIndicator = screen.getByText(/white/i);
+          expect(turnIndicator).toBeInTheDocument();
+          expect(turnIndicator.textContent).toMatch(/white.*turn/i);
+        },
+        { timeout: 3000 }
+      );
+    });
+
+    it("should update turn indicator after each move", async () => {
+      const user = userEvent.setup();
+      render(<App />);
+
+      // Initially White's turn
+      const initialTurnIndicator = screen.getByText(/white/i);
+      expect(initialTurnIndicator).toBeInTheDocument();
+      expect(initialTurnIndicator.textContent).toMatch(/white.*turn/i);
+
+      // White moves
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        const turnIndicator = screen.getByText(/black/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/black.*turn/i);
+      });
+
+      // Black moves
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        const turnIndicator = screen.getByText(/white/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/white.*turn/i);
+      });
+    });
+
+    it("should not display authentication or user account UI", () => {
+      render(<App />);
+
+      // Check that no authentication-related elements exist
+      expect(
+        screen.queryByText(/login|sign in|sign up|register|account|user|profile/i)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("textbox", { name: /email|username|password/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /login|sign in|sign up|register/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("should support full game flow: start, play moves, undo, reset, continue play", async () => {
+      const user = userEvent.setup();
+      render(<App />);
+
+      // Start game - make initial moves
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+        expect(screen.getByText(/e4/)).toBeInTheDocument();
+      });
+
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+        expect(screen.getByText(/e5/)).toBeInTheDocument();
+      });
+
+      // Undo last move
+      const undoButton = screen.getByRole("button", { name: /undo/i });
+      await user.click(undoButton);
+
+      await waitFor(() => {
+        expect(e5Square).not.toHaveTextContent("♟");
+        expect(screen.queryByText(/e5/)).not.toBeInTheDocument();
+      });
+
+      // After undo, the board should be back to the state after e4
+      // After e4, it becomes Black's turn, so after undoing e5, it should be Black's turn
+      await waitFor(() => {
+        // Verify the board state: e4 should still be there
+        expect(e4Square).toHaveTextContent("♙");
+        // The turn indicator should reflect the current board state (Black's turn after e4)
+        const turnIndicator = screen.getByText(/black/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/black.*turn/i);
+      });
+
+      // Reset game
+      const resetButton = screen.getByRole("button", { name: /reset|new game/i });
+      await user.click(resetButton);
+
+      await waitFor(() => {
+        expect(e2Square).toHaveTextContent("♙");
+        expect(e4Square).not.toHaveTextContent("♙");
+        expect(screen.queryByText(/e4/)).not.toBeInTheDocument();
+        // After reset, turn should be White (initial state)
+        const turnIndicatorAfterReset = screen.getByText(/white/i);
+        expect(turnIndicatorAfterReset).toBeInTheDocument();
+        expect(turnIndicatorAfterReset.textContent).toMatch(/white.*turn/i);
+      });
+
+      // Continue play after reset
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+        expect(screen.getByText(/e4/)).toBeInTheDocument();
+        const turnIndicator = screen.getByText(/black/i);
+        expect(turnIndicator).toBeInTheDocument();
+        expect(turnIndicator.textContent).toMatch(/black.*turn/i);
+      });
+    });
+  });
 });
