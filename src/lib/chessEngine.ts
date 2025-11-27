@@ -765,12 +765,62 @@ function updateCastlingRights(
 }
 
 /**
- * Evaluates the game result (checkmate, stalemate, or ongoing).
+ * Serializes a board state to a string for comparison.
+ * Includes squares, activeColor, castlingRights, and enPassantTarget.
+ */
+function serializeBoardState(boardState: BoardState): string {
+  // Sort squares by full coordinate (file + rank) for deterministic ordering
+  // Using localeCompare on the full square string ensures correct ordering
+  // (e.g., "a1" < "a2" < "b1" < "b2")
+  const sortedSquares = Array.from(boardState.squares.entries()).sort(([a], [b]) => {
+    return a.localeCompare(b);
+  });
+  const squaresStr = sortedSquares
+    .map(([square, piece]) => `${square}:${piece.color}:${piece.type}`)
+    .join(",");
+  const castlingStr = JSON.stringify(boardState.castlingRights);
+  return `${squaresStr}|${boardState.activeColor}|${castlingStr}|${boardState.enPassantTarget}`;
+}
+
+/**
+ * Checks if the same board state has occurred three times in history.
+ */
+function isThreefoldRepetition(boardState: BoardState, boardStateHistory: BoardState[]): boolean {
+  const currentStateStr = serializeBoardState(boardState);
+  let count = 0;
+  for (const state of boardStateHistory) {
+    if (serializeBoardState(state) === currentStateStr) {
+      count++;
+    }
+  }
+  return count >= 3;
+}
+
+/**
+ * Evaluates the game result (checkmate, stalemate, draw by threefold repetition,
+ * draw by 50-move rule, or ongoing).
  *
  * @param boardState - The current board state.
+ * @param boardStateHistory - Optional history of board states for threefold repetition detection.
  * @returns The game result.
  */
-export function evaluateGameResult(boardState: BoardState): GameResult {
+export function evaluateGameResult(
+  boardState: BoardState,
+  boardStateHistory?: BoardState[]
+): GameResult {
+  // Check for 50-move rule first (before checking legal moves)
+  // Note: Per Issue #40 requirements, this is implemented as an automatic draw.
+  // Official FIDE rules treat 50 moves as a claimable draw (not automatic),
+  // but this implementation follows the specified requirement for automatic detection.
+  if (boardState.halfMoveClock >= 50) {
+    return { type: "draw", reason: "50-move rule" };
+  }
+
+  // Check for threefold repetition if history is provided
+  if (boardStateHistory && isThreefoldRepetition(boardState, boardStateHistory)) {
+    return { type: "draw", reason: "threefold repetition" };
+  }
+
   const activeColor = boardState.activeColor;
   const inCheck = isKingInCheck(boardState, activeColor);
 

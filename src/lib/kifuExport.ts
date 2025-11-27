@@ -11,6 +11,12 @@ import type { Move, GameResult } from "./types";
  */
 function formatGameResultForText(gameResult: GameResult): string {
   if (gameResult.type === "draw") {
+    if (gameResult.reason === "threefold repetition") {
+      return "1/2-1/2 (threefold repetition)";
+    }
+    if (gameResult.reason === "50-move rule") {
+      return "1/2-1/2 (50-move rule)";
+    }
     return "1/2-1/2 (draw agreed)";
   }
   if (gameResult.type === "resignation") {
