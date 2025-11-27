@@ -7,6 +7,8 @@ import { useGameState } from "./contexts/GameStateContext";
 export const App: React.FC = () => {
   const {
     currentBoardState,
+    gameResult,
+    isGameOver,
     handleMove,
     handleUndo,
     handleReset,
@@ -19,6 +21,17 @@ export const App: React.FC = () => {
     visibleMoves,
     state: { currentMoveIndex }
   } = useGameState();
+
+  const renderGameResultMessage = (): string => {
+    if (gameResult.type === "checkmate") {
+      const winnerText = gameResult.winner === "white" ? "White" : "Black";
+      return `${winnerText} wins by checkmate`;
+    }
+    if (gameResult.type === "stalemate") {
+      return "Draw by stalemate";
+    }
+    return "";
+  };
 
   return (
     <main className="app-container">
@@ -54,7 +67,16 @@ export const App: React.FC = () => {
               New Game
             </button>
           </div>
-          <ChessBoard boardState={currentBoardState} onMove={handleMove} />
+          {gameResult.type !== "ongoing" && (
+            <div className="game-result-banner" role="status" aria-live="polite">
+              {renderGameResultMessage()}
+            </div>
+          )}
+          <ChessBoard
+            boardState={currentBoardState}
+            onMove={isGameOver ? undefined : handleMove}
+            isInteractive={!isGameOver}
+          />
         </section>
         <aside className="app-sidebar">
           <MoveList

@@ -4,7 +4,8 @@ import {
   createInitialBoardState,
   validateMove,
   applyMove,
-  getLegalMoves
+  getLegalMoves,
+  evaluateGameResult
 } from "../../src/lib/chessEngine";
 import type { Move, BoardState } from "../../src/lib/types";
 
@@ -1260,6 +1261,117 @@ describe("Chess Engine", () => {
 
         expect(legalMoves).not.toContain("e4"); // Double-step should not be legal
       });
+    });
+  });
+
+  describe("evaluateGameResult", () => {
+    it("should return ongoing for initial board state", () => {
+      const boardState = createInitialBoardState();
+      const result = evaluateGameResult(boardState);
+
+      expect(result.type).toBe("ongoing");
+    });
+
+    it("should detect checkmate when king is in check and has no legal moves", () => {
+      // Simple checkmate: white king on a1, black queen on b2, black king on c3
+      // White king is in check and has no legal moves (all squares are attacked or blocked)
+      const boardState: BoardState = {
+        ...createInitialBoardState(),
+        squares: new Map([
+          ["a1", { color: "white", type: "king" }],
+          ["b2", { color: "black", type: "queen" }],
+          ["c3", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+      const result = evaluateGameResult(boardState);
+
+      expect(result.type).toBe("checkmate");
+      if (result.type === "checkmate") {
+        expect(result.winner).toBe("black");
+      }
+    });
+
+    it("should detect stalemate when king is not in check but has no legal moves", () => {
+      // Stalemate position: white king on a8, black king on c7, black rook on b7
+      // White to move, not in check, but no legal moves (all squares are attacked or blocked)
+      const boardState: BoardState = {
+        ...createInitialBoardState(),
+        squares: new Map([
+          ["a8", { color: "white", type: "king" }],
+          ["c7", { color: "black", type: "king" }],
+          ["b7", { color: "black", type: "rook" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+      const result = evaluateGameResult(boardState);
+
+      expect(result.type).toBe("stalemate");
+    });
+
+    it("should return ongoing when king is in check but has legal moves", () => {
+      // King in check but can move away
+      // Set up proper check position
+      const correctedState: BoardState = {
+        ...createInitialBoardState(),
+        squares: new Map([
+          ["e1", { color: "white", type: "king" }],
+          ["e8", { color: "black", type: "king" }],
+          ["d8", { color: "black", type: "queen" }] // Queen attacks e1 from d8
+        ]),
+        activeColor: "white"
+      };
+      const result = evaluateGameResult(correctedState);
+
+      expect(result.type).toBe("ongoing");
+    });
+
+    it("should detect checkmate for black when black king is checkmated", () => {
+      // Black king checkmated: black king on a8, white queen on b7, white king on c6
+      // Black king is in check (queen attacks a8) and has no legal moves
+      // All escape squares (a7, b8, b7) are attacked by queen or blocked
+      const boardState: BoardState = {
+        ...createInitialBoardState(),
+        squares: new Map([
+          ["a8", { color: "black", type: "king" }],
+          ["b7", { color: "white", type: "queen" }],
+          ["c6", { color: "white", type: "king" }]
+        ]),
+        activeColor: "black",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+      const result = evaluateGameResult(boardState);
+
+      expect(result.type).toBe("checkmate");
+      if (result.type === "checkmate") {
+        expect(result.winner).toBe("white");
+      }
     });
   });
 });

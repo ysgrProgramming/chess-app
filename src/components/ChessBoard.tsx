@@ -61,6 +61,10 @@ export interface ChessBoardProps {
    * Callback invoked when a move is successfully applied.
    */
   onMove?: (move: Move) => void;
+  /**
+   * When false, the board becomes read-only and no new moves can be made.
+   */
+  isInteractive?: boolean;
 }
 
 /**
@@ -68,7 +72,8 @@ export interface ChessBoardProps {
  */
 export const ChessBoard: React.FC<ChessBoardProps> = ({
   boardState: externalBoardState,
-  onMove
+  onMove,
+  isInteractive = true
 }) => {
   const [internalBoardState, setInternalBoardState] = useState<BoardState>(
     externalBoardState || createInitialBoardState()
@@ -103,13 +108,16 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
    * Gets legal destination squares for the currently selected or dragged piece.
    */
   const getCurrentLegalMoves = useCallback((): Set<Square> => {
+    if (!isInteractive) {
+      return new Set();
+    }
     const activeSquare = selectedSquare || draggedSquare;
     if (!activeSquare) {
       return new Set();
     }
     const legalMoves = getLegalMoves(boardState, activeSquare);
     return new Set(legalMoves);
-  }, [boardState, selectedSquare, draggedSquare]);
+  }, [boardState, selectedSquare, draggedSquare, isInteractive]);
 
   /**
    * Checks if a pawn move requires promotion.
@@ -131,6 +139,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
    */
   const applyMoveWithPromotion = useCallback(
     (from: Square, to: Square, promotion?: PieceType) => {
+      if (!isInteractive) {
+        return;
+      }
       const stateForMove: BoardState = boardState;
       const move: Move = { from, to, promotion };
       const validation = validateMove(stateForMove, move);
@@ -146,7 +157,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         }
       }
     },
-    [boardState, externalBoardState, onMove]
+    [boardState, externalBoardState, onMove, isInteractive]
   );
 
   /**
@@ -155,6 +166,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
    */
   const handleMoveAttempt = useCallback(
     (from: Square, to: Square) => {
+      if (!isInteractive) {
+        return;
+      }
       const movingPiece = boardState.squares.get(from);
       if (!movingPiece) {
         return;
@@ -201,6 +215,12 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
    */
   const handleSquareClick = useCallback(
     (square: Square) => {
+      if (!isInteractive) {
+        return;
+      }
+      if (!isInteractive) {
+        return;
+      }
       if (selectedSquare === null) {
         // First click: select source square
         const piece = boardState.squares.get(square);
@@ -223,7 +243,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         }
       }
     },
-    [selectedSquare, boardState, handleMoveAttempt]
+    [selectedSquare, boardState, handleMoveAttempt, isInteractive]
   );
 
   /**
@@ -251,12 +271,15 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
    */
   const handleDrop = useCallback(
     (targetSquare: Square) => {
+      if (!isInteractive) {
+        return;
+      }
       if (draggedSquare && draggedSquare !== targetSquare) {
         handleMoveAttempt(draggedSquare, targetSquare);
       }
       setDraggedSquare(null);
     },
-    [draggedSquare, handleMoveAttempt]
+    [draggedSquare, handleMoveAttempt, isInteractive]
   );
 
   /**

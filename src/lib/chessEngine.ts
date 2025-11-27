@@ -9,7 +9,8 @@ import {
   type Color,
   type Piece,
   type CastlingRights,
-  type Square
+  type Square,
+  type GameResult
 } from "./types";
 
 /**
@@ -522,7 +523,7 @@ function canPieceAttackSquare(
 /**
  * Checks if the king of the given color is in check.
  */
-function isKingInCheck(boardState: BoardState, color: Color): boolean {
+export function isKingInCheck(boardState: BoardState, color: Color): boolean {
   // Find the king
   let kingSquare: string | undefined;
   for (const [square, piece] of boardState.squares.entries()) {
@@ -761,4 +762,39 @@ function updateCastlingRights(
   }
 
   return newRights;
+}
+
+/**
+ * Evaluates the game result (checkmate, stalemate, or ongoing).
+ *
+ * @param boardState - The current board state.
+ * @returns The game result.
+ */
+export function evaluateGameResult(boardState: BoardState): GameResult {
+  const activeColor = boardState.activeColor;
+  const inCheck = isKingInCheck(boardState, activeColor);
+
+  // Get all legal moves for the active player
+  const allLegalMoves: Square[] = [];
+  for (const [square, piece] of boardState.squares.entries()) {
+    if (piece.color === activeColor) {
+      const legalMoves = getLegalMoves(boardState, square);
+      allLegalMoves.push(...legalMoves);
+    }
+  }
+
+  // If no legal moves available
+  if (allLegalMoves.length === 0) {
+    if (inCheck) {
+      // Checkmate: opponent wins
+      const winner: Color = activeColor === "white" ? "black" : "white";
+      return { type: "checkmate", winner };
+    } else {
+      // Stalemate: draw
+      return { type: "stalemate" };
+    }
+  }
+
+  // Game is ongoing
+  return { type: "ongoing" };
 }

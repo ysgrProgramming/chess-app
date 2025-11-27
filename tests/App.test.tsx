@@ -1058,4 +1058,69 @@ describe("App", () => {
       }
     });
   });
+
+  describe("Game over handling (checkmate)", () => {
+    it("should show checkmate banner and prevent additional moves until reset", async () => {
+      const user = userEvent.setup();
+
+      const checkmatePreMoveBoard: BoardState = {
+        squares: new Map([
+          ["a1", { color: "white", type: "king" }],
+          ["b3", { color: "black", type: "queen" }],
+          ["c3", { color: "black", type: "king" }]
+        ]),
+        activeColor: "black",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      const createInitialBoardStateSpy = vi
+        .spyOn(chessEngine, "createInitialBoardState")
+        .mockReturnValue(checkmatePreMoveBoard);
+
+      try {
+        renderApp();
+
+        // Ensure black queen is on b3
+        const b3Square = screen.getByLabelText(/square b3/i);
+        expect(b3Square).toHaveTextContent("♕");
+
+        // Black moves queen from b3 to b2 delivering checkmate
+        await user.click(b3Square);
+        const b2Square = screen.getByLabelText(/square b2/i);
+        await user.click(b2Square);
+
+        // Banner should show checkmate result for Black
+        await waitFor(() => {
+          expect(screen.getByRole("status")).toHaveTextContent("Black wins by checkmate");
+        });
+
+        // Attempt another move should not change the move list (no additional moves appended)
+        const initialMoveItems = screen.getAllByRole("listitem").length;
+        await user.click(b3Square);
+        await user.click(b2Square);
+
+        await waitFor(() => {
+          expect(screen.getAllByRole("listitem").length).toBe(initialMoveItems);
+        });
+
+        // After reset, game over banner should disappear
+        const newGameButton = screen.getByRole("button", { name: /reset game/i });
+        await user.click(newGameButton);
+
+        await waitFor(() => {
+          expect(screen.queryByRole("status")).not.toBeInTheDocument();
+        });
+      } finally {
+        createInitialBoardStateSpy.mockRestore();
+      }
+    });
+  });
 });

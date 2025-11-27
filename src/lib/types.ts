@@ -70,3 +70,11 @@ export interface Game {
 export type MoveValidationResult =
   | { readonly valid: true }
   | { readonly valid: false; readonly reason: string };
+
+/**
+ * Game result evaluation.
+ */
+export type GameResult =
+  | { readonly type: "ongoing" }
+  | { readonly type: "checkmate"; readonly winner: Color }
+  | { readonly type: "stalemate" };
