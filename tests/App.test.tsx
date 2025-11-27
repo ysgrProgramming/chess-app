@@ -1547,14 +1547,17 @@ describe("App", () => {
       await user.click(f3Square);
       await user.click(e5Square);
 
-      await waitFor(() => {
-        // Verify capture is reflected on board: knight should be on e5, pawn should be gone
-        expect(e5Square).toHaveTextContent("♘");
-        expect(f3Square).not.toHaveTextContent("♘");
-        // Verify capture is reflected in move list with capture notation (Nxe5 format)
-        const moveList = screen.getByRole("list", { name: /move list|kifu/i });
-        expect(moveList.textContent).toMatch(/Nxe5/);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          // Verify capture is reflected on board: knight should be on e5, pawn should be gone
+          expect(e5Square).toHaveTextContent("♘");
+          expect(f3Square).not.toHaveTextContent("♘");
+          // Verify capture is reflected in move list with capture notation (Nxe5 format)
+          const moveList = screen.getByRole("list", { name: /move list|kifu/i });
+          expect(moveList.textContent).toMatch(/Nxe5/);
+        },
+        { timeout: 5000 }
+      );
     });
 
     it("should reflect capture on board and move list - pawn capture", async () => {
@@ -1590,14 +1593,17 @@ describe("App", () => {
       await user.click(e4Square);
       await user.click(d5Square);
 
-      await waitFor(() => {
-        // Verify capture is reflected on board: white pawn should be on d5
-        expect(d5Square).toHaveTextContent("♙");
-        expect(e4Square).not.toHaveTextContent("♙");
-        // Verify capture is reflected in move list with capture notation (exd5 format)
-        const moveList = screen.getByRole("list", { name: /move list|kifu/i });
-        expect(moveList.textContent).toMatch(/exd5/);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          // Verify capture is reflected on board: white pawn should be on d5
+          expect(d5Square).toHaveTextContent("♙");
+          expect(e4Square).not.toHaveTextContent("♙");
+          // Verify capture is reflected in move list with capture notation (exd5 format)
+          const moveList = screen.getByRole("list", { name: /move list|kifu/i });
+          expect(moveList.textContent).toMatch(/exd5/);
+        },
+        { timeout: 5000 }
+      );
     });
   });
 });
