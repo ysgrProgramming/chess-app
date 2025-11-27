@@ -2,7 +2,7 @@
  * Interactive chessboard component with drag-and-drop and tap/click support.
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 
 import {
   createInitialBoardState,
@@ -93,6 +93,10 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
     from: Square;
     to: Square;
   } | null>(null);
+  /**
+   * Tracks whether a touch event was handled to prevent synthetic click from firing.
+   */
+  const touchHandledRef = useRef<boolean>(false);
 
   // Reset selection when external board state changes
   useEffect(() => {
@@ -316,6 +320,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   const handleTouchStart = useCallback((event: React.TouchEvent, square: Square) => {
     const touch = event.touches[0];
     if (touch) {
+      // Reset touch handled flag for new touch sequence
+      touchHandledRef.current = false;
       setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
       setTouchStartSquare(square);
       setIsDragging(false);
@@ -387,6 +393,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       }
       // If it was a tap (small movement), handle as click
       else if (deltaX < GESTURE_THRESHOLD && deltaY < GESTURE_THRESHOLD) {
+        // Prevent synthetic click event from firing after touch
+        event.preventDefault();
+        // Mark that we handled this touch event to ignore synthetic click
+        touchHandledRef.current = true;
+
         // Use touchStartSquare to determine the actual square that was tapped
         // This ensures we have the correct selection state when handleSquareClick is called
         const tappedSquare = touchStartSquare;
@@ -399,6 +410,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         // - If selected square differs and tapped square has same-color piece: update selection
         // - If selected square differs and tapped square is empty: move
         handleSquareClick(tappedSquare);
+
+        // Reset the flag after a delay to allow synthetic click to be ignored
+        // Synthetic click events typically fire within 300ms after touchend
+        // Use a longer timeout to ensure the flag remains set during that window
+        setTimeout(() => {
+          touchHandledRef.current = false;
+        }, 300);
       }
 
       // Reset touch state
@@ -440,7 +458,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
           className={`chess-square ${isLight ? "light" : "dark"} ${isSelected ? "selected" : ""} ${
             isDragged ? "dragging" : ""
           } ${isLegalMove ? "legal-move" : ""} ${isLegalMove && hasPiece ? "legal-move-capture" : ""}`}
-          onClick={() => handleSquareClick(square)}
+          onClick={() => {
+            // Ignore synthetic click events that fire after touch events
+            if (touchHandledRef.current) {
+              return;
+            }
+            handleSquareClick(square);
+          }}
           draggable={!!piece}
           onDragStart={() => handleDragStart(square)}
           onDragEnd={handleDragEnd}
