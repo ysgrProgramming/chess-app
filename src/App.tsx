@@ -9,12 +9,17 @@ export const App: React.FC = () => {
     currentBoardState,
     gameResult,
     isGameOver,
+    drawOfferBy,
     handleMove,
     handleUndo,
     handleReset,
     handleJumpToMove,
     handlePreviousMove,
     handleNextMove,
+    handleOfferDraw,
+    handleAcceptDraw,
+    handleDeclineDraw,
+    handleResign,
     canUndo,
     canGoToPreviousMove,
     canGoToNextMove,
@@ -30,8 +35,18 @@ export const App: React.FC = () => {
     if (gameResult.type === "stalemate") {
       return "Draw by stalemate";
     }
+    if (gameResult.type === "draw") {
+      return "Draw by agreement";
+    }
+    if (gameResult.type === "resignation") {
+      const winnerText = gameResult.winner === "white" ? "White" : "Black";
+      const loserText = gameResult.winner === "white" ? "Black" : "White";
+      return `${winnerText} wins (${loserText} resigned)`;
+    }
     return "";
   };
+
+  const hasActiveDrawOffer = drawOfferBy !== null && !isGameOver;
 
   return (
     <main className="app-container">
@@ -66,7 +81,33 @@ export const App: React.FC = () => {
             <button type="button" onClick={handleReset} aria-label="Reset game">
               New Game
             </button>
+            <button
+              type="button"
+              onClick={handleOfferDraw}
+              disabled={isGameOver || hasActiveDrawOffer}
+              aria-label="Offer draw"
+            >
+              Offer draw
+            </button>
+            <button type="button" onClick={handleResign} disabled={isGameOver} aria-label="Resign">
+              Resign
+            </button>
           </div>
+          {hasActiveDrawOffer && (
+            <div className="draw-offer-banner" role="alert" aria-live="polite">
+              <div>
+                <span>Draw offer: {drawOfferBy === "white" ? "White" : "Black"} offers a draw</span>
+                <div className="draw-offer-actions">
+                  <button type="button" onClick={handleAcceptDraw} aria-label="Accept draw">
+                    Accept draw
+                  </button>
+                  <button type="button" onClick={handleDeclineDraw} aria-label="Decline draw">
+                    Decline draw
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {gameResult.type !== "ongoing" && (
             <div className="game-result-banner" role="status" aria-live="polite">
               {renderGameResultMessage()}
@@ -82,6 +123,7 @@ export const App: React.FC = () => {
           <MoveList
             moves={visibleMoves}
             currentMoveIndex={currentMoveIndex}
+            gameResult={gameResult}
             onMoveClick={handleJumpToMove}
           />
         </aside>

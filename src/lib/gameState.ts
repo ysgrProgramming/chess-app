@@ -2,7 +2,7 @@
  * Centralized game state management with session-scoped persistence.
  */
 
-import type { Move } from "./types";
+import type { Move, Color, GameResult } from "./types";
 
 /**
  * Represents the game state (move history and current position).
@@ -11,6 +11,8 @@ export interface GameState {
   readonly moveHistory: readonly Move[];
   readonly currentMoveIndex: number;
   readonly isPreviewing: boolean;
+  readonly drawOfferBy: Color | null;
+  readonly gameResult: GameResult;
 }
 
 /**
@@ -22,7 +24,11 @@ export type GameAction =
   | { type: "RESET" }
   | { type: "JUMP_TO_MOVE"; targetIndex: number }
   | { type: "NEXT_MOVE" }
-  | { type: "PREVIOUS_MOVE" };
+  | { type: "PREVIOUS_MOVE" }
+  | { type: "OFFER_DRAW" }
+  | { type: "ACCEPT_DRAW" }
+  | { type: "DECLINE_DRAW" }
+  | { type: "RESIGN" };
 
 /**
  * Validation result for game state.
@@ -36,7 +42,9 @@ export function createInitialGameState(): GameState {
   return {
     moveHistory: [],
     currentMoveIndex: -1,
-    isPreviewing: false
+    isPreviewing: false,
+    drawOfferBy: null,
+    gameResult: { type: "ongoing" }
   };
 }
 
@@ -46,12 +54,21 @@ export function createInitialGameState(): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "MOVE": {
+      // Cannot make moves if game is over
+      if (state.gameResult && state.gameResult.type !== "ongoing") {
+        return state;
+      }
       const { move } = action;
+      const newState = {
+        ...state,
+        drawOfferBy: null // Expire draw offer when a move is made
+      };
       if (state.currentMoveIndex < state.moveHistory.length - 1) {
         // If we're not at the end, truncate history and add new move
         const truncatedHistory = state.moveHistory.slice(0, state.currentMoveIndex + 1);
         const newHistory = [...truncatedHistory, move];
         return {
+          ...newState,
           moveHistory: newHistory,
           currentMoveIndex: newHistory.length - 1,
           isPreviewing: false
@@ -60,6 +77,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         // Normal case: append to end
         const newHistory = [...state.moveHistory, move];
         return {
+          ...newState,
           moveHistory: newHistory,
           currentMoveIndex: newHistory.length - 1,
           isPreviewing: false
@@ -77,11 +95,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return state;
     }
     case "RESET": {
-      return {
-        moveHistory: [],
-        currentMoveIndex: -1,
-        isPreviewing: false
-      };
+      return createInitialGameState();
     }
     case "NEXT_MOVE": {
       // Can only move forward if not at the end and history is not empty
@@ -121,9 +135,70 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
       return state;
     }
+    case "OFFER_DRAW": {
+      // Cannot offer draw if game is over
+      if (state.gameResult && state.gameResult.type !== "ongoing") {
+        return state;
+      }
+      // Determine who is offering (opposite of active color)
+      // We need to know the active color, which is computed from move history
+      // For now, we'll use a helper to determine active color
+      // This is a simplification - in a real implementation, we'd pass activeColor
+      return {
+        ...state,
+        drawOfferBy: getActiveColorFromState(state)
+      };
+    }
+    case "ACCEPT_DRAW": {
+      // Can only accept if there is an active draw offer
+      if ((state.gameResult && state.gameResult.type !== "ongoing") || !state.drawOfferBy) {
+        return state;
+      }
+      return {
+        ...state,
+        gameResult: { type: "draw", reason: "agreed" },
+        drawOfferBy: null
+      };
+    }
+    case "DECLINE_DRAW": {
+      // Simply clear the draw offer
+      return {
+        ...state,
+        drawOfferBy: null
+      };
+    }
+    case "RESIGN": {
+      // Cannot resign if game is over
+      if (state.gameResult && state.gameResult.type !== "ongoing") {
+        return state;
+      }
+      const activeColor = getActiveColorFromState(state);
+      const winner: Color = activeColor === "white" ? "black" : "white";
+      return {
+        ...state,
+        gameResult: { type: "resignation", winner },
+        drawOfferBy: null
+      };
+    }
     default:
       return state;
   }
+}
+
+/**
+ * Helper function to determine active color from game state.
+ * White starts, alternates with each move.
+ */
+function getActiveColorFromState(state: GameState): Color {
+  // White starts, so:
+  // currentMoveIndex = -1 (initial) → White's turn
+  // currentMoveIndex = 0 (after white's first move) → Black's turn
+  // currentMoveIndex = 1 (after black's first move) → White's turn
+  // So: (currentMoveIndex + 1) % 2 === 0 means White's turn
+  if (state.currentMoveIndex === -1) {
+    return "white";
+  }
+  return (state.currentMoveIndex + 1) % 2 === 0 ? "white" : "black";
 }
 
 /**
@@ -165,7 +240,9 @@ export function serializeGameState(state: GameState): string {
   return JSON.stringify({
     moveHistory: state.moveHistory,
     currentMoveIndex: state.currentMoveIndex,
-    isPreviewing: state.isPreviewing
+    isPreviewing: state.isPreviewing,
+    drawOfferBy: state.drawOfferBy,
+    gameResult: state.gameResult
   });
 }
 
@@ -179,7 +256,9 @@ export function deserializeGameState(json: string): GameState {
     const state: GameState = {
       moveHistory: parsed.moveHistory || [],
       currentMoveIndex: parsed.currentMoveIndex ?? -1,
-      isPreviewing: parsed.isPreviewing ?? false
+      isPreviewing: parsed.isPreviewing ?? false,
+      drawOfferBy: parsed.drawOfferBy ?? null,
+      gameResult: parsed.gameResult ?? { type: "ongoing" }
     };
 
     // Validate the deserialized state
