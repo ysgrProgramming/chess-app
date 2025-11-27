@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 
 import { App } from "../src/App";
 import { GameStateProvider } from "../src/contexts/GameStateContext";
+import * as chessEngine from "../src/lib/chessEngine";
 import type { BoardState } from "../src/lib/types";
 
 /**
@@ -991,6 +992,70 @@ describe("App", () => {
 
       // Verify pawn is still on e7
       expect(e7Square).toHaveTextContent("♙");
+    });
+
+    it("should update move history and SAN notation when promotion is selected in App", async () => {
+      const user = userEvent.setup();
+
+      // Use a custom initial board state where white pawn is already on e7
+      const initialBoardState: BoardState = {
+        squares: new Map([
+          ["e7", { color: "white", type: "pawn" }],
+          ["e1", { color: "white", type: "king" }],
+          ["d8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      const createInitialBoardStateSpy = vi
+        .spyOn(chessEngine, "createInitialBoardState")
+        .mockReturnValue(initialBoardState);
+
+      try {
+        renderApp();
+
+        // Verify pawn is on e7
+        const e7Square = screen.getByLabelText(/square e7/i);
+        expect(e7Square).toHaveTextContent("♙");
+
+        // Trigger promotion via App UI
+        await user.click(e7Square);
+        const e8Square = screen.getByLabelText(/square e8/i);
+        await user.click(e8Square);
+
+        // Wait for promotion dialog
+        await waitFor(() => {
+          expect(
+            screen.getByRole("dialog", { name: /select promotion piece/i })
+          ).toBeInTheDocument();
+        });
+
+        // Select knight promotion
+        const knightButton = screen.getByRole("button", { name: /promote to knight/i });
+        await user.click(knightButton);
+
+        // Verify move history shows promotion with SAN notation (e8=N)
+        await waitFor(() => {
+          expect(screen.getByText(/e8=N/)).toBeInTheDocument();
+        });
+
+        // Verify the board shows knight on e8
+        await waitFor(() => {
+          const e8SquareAfter = screen.getByLabelText(/square e8/i);
+          expect(e8SquareAfter).toHaveTextContent("♞");
+        });
+      } finally {
+        createInitialBoardStateSpy.mockRestore();
+      }
     });
   });
 });
