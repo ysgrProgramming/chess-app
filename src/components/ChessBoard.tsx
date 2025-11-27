@@ -77,12 +77,18 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
 
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [draggedSquare, setDraggedSquare] = useState<Square | null>(null);
+  const [touchStartPosition, setTouchStartPosition] = useState<{ x: number; y: number } | null>(
+    null
+  );
+  const [isDragging, setIsDragging] = useState(false);
 
   // Reset selection when external board state changes
   useEffect(() => {
     if (externalBoardState) {
       setSelectedSquare(null);
       setDraggedSquare(null);
+      setTouchStartPosition(null);
+      setIsDragging(false);
     }
   }, [externalBoardState]);
 
@@ -198,6 +204,111 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   }, []);
 
   /**
+   * Threshold for distinguishing between drag and scroll gestures (in pixels).
+   */
+  const GESTURE_THRESHOLD = 10;
+
+  /**
+   * Handles touch start event for mobile gesture detection.
+   */
+  const handleTouchStart = useCallback(
+    (event: React.TouchEvent, square: Square) => {
+      const touch = event.touches[0];
+      if (touch) {
+        setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
+        setIsDragging(false);
+
+        // Select piece on touch start if it's a piece square
+        const piece = boardState.squares.get(square);
+        if (piece) {
+          setSelectedSquare(square);
+        }
+      }
+    },
+    [boardState]
+  );
+
+  /**
+   * Handles touch move event to distinguish between drag and scroll gestures.
+   */
+  const handleTouchMove = useCallback(
+    (event: React.TouchEvent, square: Square) => {
+      if (!touchStartPosition) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      const deltaX = Math.abs(touch.clientX - touchStartPosition.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPosition.y);
+
+      // If horizontal movement is significant, treat as drag gesture
+      if (deltaX > GESTURE_THRESHOLD && deltaX > deltaY) {
+        setIsDragging(true);
+        setDraggedSquare(square);
+        // Prevent scrolling when dragging horizontally
+        event.preventDefault();
+      }
+      // If vertical movement is significant, treat as scroll gesture
+      else if (deltaY > GESTURE_THRESHOLD && deltaY > deltaX) {
+        // Allow scrolling - don't prevent default
+        setIsDragging(false);
+        setDraggedSquare(null);
+        setSelectedSquare(null);
+      }
+    },
+    [touchStartPosition]
+  );
+
+  /**
+   * Handles touch end event to complete move or cancel gesture.
+   */
+  const handleTouchEnd = useCallback(
+    (event: React.TouchEvent, square: Square) => {
+      if (!touchStartPosition) {
+        return;
+      }
+
+      const touch = event.changedTouches[0];
+      if (!touch) {
+        return;
+      }
+
+      const deltaX = Math.abs(touch.clientX - touchStartPosition.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPosition.y);
+
+      // If it was a drag gesture (horizontal movement), attempt move
+      if (isDragging && deltaX > GESTURE_THRESHOLD && deltaX > deltaY) {
+        const piece = boardState.squares.get(square);
+        if (piece && selectedSquare && selectedSquare !== square) {
+          // Moving to a different square - attempt move
+          handleMoveAttempt(selectedSquare, square);
+        }
+      }
+      // If it was a tap (small movement), handle as click
+      else if (deltaX < GESTURE_THRESHOLD && deltaY < GESTURE_THRESHOLD) {
+        handleSquareClick(square);
+      }
+
+      // Reset touch state
+      setTouchStartPosition(null);
+      setIsDragging(false);
+      setDraggedSquare(null);
+    },
+    [
+      touchStartPosition,
+      isDragging,
+      selectedSquare,
+      boardState,
+      handleMoveAttempt,
+      handleSquareClick
+    ]
+  );
+
+  /**
    * Renders a single square.
    */
   const renderSquare = useCallback(
@@ -225,6 +336,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDrop={() => handleDrop(square)}
+          onTouchStart={(e) => handleTouchStart(e, square)}
+          onTouchMove={(e) => handleTouchMove(e, square)}
+          onTouchEnd={(e) => handleTouchEnd(e, square)}
         >
           {piece && (
             <span className="chess-piece" aria-label={`${piece.color} ${piece.type}`}>
@@ -243,7 +357,10 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       handleDragStart,
       handleDragEnd,
       handleDrop,
-      handleDragOver
+      handleDragOver,
+      handleTouchStart,
+      handleTouchMove,
+      handleTouchEnd
     ]
   );
 
