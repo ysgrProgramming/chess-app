@@ -859,4 +859,247 @@ describe("Chess Engine", () => {
       });
     });
   });
+
+  describe("En passant", () => {
+    let initialBoardState: BoardState;
+
+    beforeEach(() => {
+      initialBoardState = createInitialBoardState();
+    });
+
+    describe("White pawn en passant capture", () => {
+      it("should validate white pawn en passant capture immediately after black pawn double-step", () => {
+        // Black pawn moves d7 -> d5 (double step)
+        const boardStateAfterBlackDoubleStep: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e5", { color: "white", type: "pawn" }], // White pawn on e5
+            ["d5", { color: "black", type: "pawn" }], // Black pawn just moved to d5
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: "d6" // Target square exposed by black's double-step
+        };
+        const move: Move = { from: "e5", to: "d6" };
+        const result = validateMove(boardStateAfterBlackDoubleStep, move);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it("should apply white pawn en passant capture correctly", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e5", { color: "white", type: "pawn" }],
+            ["d5", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: "d6"
+        };
+        const move: Move = { from: "e5", to: "d6" };
+        const newBoardState = applyMove(boardState, move);
+
+        // White pawn should be on d6
+        expect(newBoardState.squares.get("d6")).toEqual({ color: "white", type: "pawn" });
+        // Black pawn on d5 should be removed
+        expect(newBoardState.squares.get("d5")).toBeUndefined();
+        // White pawn should be removed from e5
+        expect(newBoardState.squares.get("e5")).toBeUndefined();
+        // enPassantTarget should be cleared
+        expect(newBoardState.enPassantTarget).toBeNull();
+        // halfMoveClock should reset (pawn move)
+        expect(newBoardState.halfMoveClock).toBe(0);
+      });
+
+      it("should include en passant capture in legal moves", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e5", { color: "white", type: "pawn" }],
+            ["d5", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: "d6"
+        };
+        const legalMoves = getLegalMoves(boardState, "e5");
+
+        expect(legalMoves).toContain("d6"); // En passant capture
+        expect(legalMoves).toContain("e6"); // Forward move
+      });
+    });
+
+    describe("Black pawn en passant capture", () => {
+      it("should validate black pawn en passant capture immediately after white pawn double-step", () => {
+        // White pawn moves e2 -> e4 (double step)
+        const boardStateAfterWhiteDoubleStep: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e4", { color: "white", type: "pawn" }], // White pawn just moved to e4
+            ["d4", { color: "black", type: "pawn" }], // Black pawn on d4
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "black",
+          enPassantTarget: "e3" // Target square exposed by white's double-step
+        };
+        const move: Move = { from: "d4", to: "e3" };
+        const result = validateMove(boardStateAfterWhiteDoubleStep, move);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it("should apply black pawn en passant capture correctly", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e4", { color: "white", type: "pawn" }],
+            ["d4", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "black",
+          enPassantTarget: "e3"
+        };
+        const move: Move = { from: "d4", to: "e3" };
+        const newBoardState = applyMove(boardState, move);
+
+        // Black pawn should be on e3
+        expect(newBoardState.squares.get("e3")).toEqual({ color: "black", type: "pawn" });
+        // White pawn on e4 should be removed
+        expect(newBoardState.squares.get("e4")).toBeUndefined();
+        // Black pawn should be removed from d4
+        expect(newBoardState.squares.get("d4")).toBeUndefined();
+        // enPassantTarget should be cleared
+        expect(newBoardState.enPassantTarget).toBeNull();
+        // halfMoveClock should reset (pawn move)
+        expect(newBoardState.halfMoveClock).toBe(0);
+      });
+
+      it("should include en passant capture in legal moves for black", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e4", { color: "white", type: "pawn" }],
+            ["d4", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "black",
+          enPassantTarget: "e3"
+        };
+        const legalMoves = getLegalMoves(boardState, "d4");
+
+        expect(legalMoves).toContain("e3"); // En passant capture
+        expect(legalMoves).toContain("d3"); // Forward move
+      });
+    });
+
+    describe("Invalid en passant attempts", () => {
+      it("should reject en passant when enPassantTarget is null", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e5", { color: "white", type: "pawn" }],
+            ["d5", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: null // No en passant target
+        };
+        const move: Move = { from: "e5", to: "d6" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toBeDefined();
+        }
+      });
+
+      it("should reject en passant when pawn is not on correct rank", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e4", { color: "white", type: "pawn" }], // Wrong rank (should be e5)
+            ["d4", { color: "black", type: "pawn" }], // Pawn that just moved from d7 to d5 to d4 is NOT a real scenario; this is just to ensure the square is occupied
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: "d5"
+        };
+        const move: Move = { from: "e4", to: "d5" }; // Attempts to move to enPassantTarget from wrong rank
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+      });
+
+      it("should reject en passant when target square does not match enPassantTarget", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e5", { color: "white", type: "pawn" }],
+            ["d5", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: "f6" // Wrong target square
+        };
+        const move: Move = { from: "e5", to: "d6" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+      });
+
+      it("should reject en passant when capture would expose king to check", () => {
+        // Setup: White king on e1, white pawn on e5, black pawn on d5
+        // Black queen on e8 is currently blocked by the white pawn on e5
+        // After en passant (e5xd6 ep), the e-file becomes open and the king would be in check
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["e5", { color: "white", type: "pawn" }], // Blocks queen on e8
+            ["d5", { color: "black", type: "pawn" }],
+            ["e8", { color: "black", type: "queen" }],
+            ["g8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: "d6"
+        };
+        const move: Move = { from: "e5", to: "d6" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toContain("check");
+        }
+      });
+
+      it("should reject en passant when not immediately after double-step (enPassantTarget cleared)", () => {
+        // After another move, enPassantTarget should be cleared
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e5", { color: "white", type: "pawn" }],
+            ["d5", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white",
+          enPassantTarget: null // Cleared after another move
+        };
+        const move: Move = { from: "e5", to: "d6" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+      });
+    });
+  });
 });
