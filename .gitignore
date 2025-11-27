@@ -8,6 +8,7 @@
 
 # Project Specific
 scratch/
+dist/
 
 # Note: Engineer should add language-specific ignores (e.g., __pycache__, node_modules, etc.)
 node_modules
