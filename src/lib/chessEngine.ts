@@ -769,10 +769,11 @@ function updateCastlingRights(
  * Includes squares, activeColor, castlingRights, and enPassantTarget.
  */
 function serializeBoardState(boardState: BoardState): string {
-  // Sort squares by position for consistent serialization
+  // Sort squares by full coordinate (file + rank) for deterministic ordering
+  // Using localeCompare on the full square string ensures correct ordering
+  // (e.g., "a1" < "a2" < "b1" < "b2")
   const sortedSquares = Array.from(boardState.squares.entries()).sort(([a], [b]) => {
-    if (a[0] !== b[0]) return a[0].localeCompare(b[0]);
-    return parseInt(a[1], 10) - parseInt(b[1], 10);
+    return a.localeCompare(b);
   });
   const squaresStr = sortedSquares
     .map(([square, piece]) => `${square}:${piece.color}:${piece.type}`)
@@ -808,6 +809,9 @@ export function evaluateGameResult(
   boardStateHistory?: BoardState[]
 ): GameResult {
   // Check for 50-move rule first (before checking legal moves)
+  // Note: Per Issue #40 requirements, this is implemented as an automatic draw.
+  // Official FIDE rules treat 50 moves as a claimable draw (not automatic),
+  // but this implementation follows the specified requirement for automatic detection.
   if (boardState.halfMoveClock >= 50) {
     return { type: "draw", reason: "50-move rule" };
   }
