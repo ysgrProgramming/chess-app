@@ -2,7 +2,7 @@
  * Interactive chessboard component with drag-and-drop and tap/click support.
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 
 import {
   createInitialBoardState,
@@ -52,9 +52,9 @@ function squareToNotation(file: number, rank: number): Square {
  */
 export interface ChessBoardProps {
   /**
-   * Optional initial board state. If not provided, uses standard starting position.
+   * Current board state. If not provided, uses standard starting position.
    */
-  initialBoardState?: BoardState;
+  boardState?: BoardState;
   /**
    * Callback invoked when a move is successfully applied.
    */
@@ -64,12 +64,27 @@ export interface ChessBoardProps {
 /**
  * Interactive chessboard component.
  */
-export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMove }) => {
-  const [boardState, setBoardState] = useState<BoardState>(
-    initialBoardState || createInitialBoardState()
+export const ChessBoard: React.FC<ChessBoardProps> = ({
+  boardState: externalBoardState,
+  onMove
+}) => {
+  const [internalBoardState, setInternalBoardState] = useState<BoardState>(
+    externalBoardState || createInitialBoardState()
   );
+
+  // Use external board state if provided, otherwise use internal state
+  const boardState = externalBoardState ?? internalBoardState;
+
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [draggedSquare, setDraggedSquare] = useState<Square | null>(null);
+
+  // Reset selection when external board state changes
+  useEffect(() => {
+    if (externalBoardState) {
+      setSelectedSquare(null);
+      setDraggedSquare(null);
+    }
+  }, [externalBoardState]);
 
   /**
    * Gets legal destination squares for the currently selected or dragged piece.
@@ -88,12 +103,23 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMov
    */
   const handleMoveAttempt = useCallback(
     (from: Square, to: Square) => {
+      const movingPiece = boardState.squares.get(from);
+      if (!movingPiece) {
+        return;
+      }
+
+      const stateForMove: BoardState =
+        externalBoardState != null ? { ...boardState, activeColor: movingPiece.color } : boardState;
+
       const move: Move = { from, to };
-      const validation = validateMove(boardState, move);
+      const validation = validateMove(stateForMove, move);
 
       if (validation.valid) {
-        const newBoardState = applyMove(boardState, move);
-        setBoardState(newBoardState);
+        const newBoardState = applyMove(stateForMove, move);
+        // Only update internal state if we're managing it ourselves
+        if (!externalBoardState) {
+          setInternalBoardState(newBoardState);
+        }
         if (onMove) {
           onMove(move);
         }
@@ -111,7 +137,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMov
       if (selectedSquare === null) {
         // First click: select source square
         const piece = boardState.squares.get(square);
-        if (piece && piece.color === boardState.activeColor) {
+        if (piece) {
           setSelectedSquare(square);
         }
       } else if (selectedSquare === square) {
@@ -120,7 +146,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMov
       } else {
         // Check if clicking on another piece of the same color
         const piece = boardState.squares.get(square);
-        if (piece && piece.color === boardState.activeColor) {
+        if (piece) {
           // Select the new piece instead
           setSelectedSquare(square);
         } else {
@@ -139,7 +165,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMov
   const handleDragStart = useCallback(
     (square: Square) => {
       const piece = boardState.squares.get(square);
-      if (piece && piece.color === boardState.activeColor) {
+      if (piece) {
         setDraggedSquare(square);
       }
     },
@@ -192,13 +218,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ initialBoardState, onMov
           key={square}
           role="gridcell"
           aria-label={`square ${square}`}
-          className={`chess-square ${isLight ? "light" : "dark"} ${
-            isSelected ? "selected" : ""
-          } ${isDragged ? "dragging" : ""} ${isLegalMove ? "legal-move" : ""} ${
-            isLegalMove && hasPiece ? "legal-move-capture" : ""
-          }`}
+          className={`chess-square ${isLight ? "light" : "dark"} ${isSelected ? "selected" : ""} ${
+            isDragged ? "dragging" : ""
+          } ${isLegalMove ? "legal-move" : ""} ${isLegalMove && hasPiece ? "legal-move-capture" : ""}`}
           onClick={() => handleSquareClick(square)}
-          draggable={!!piece && piece.color === boardState.activeColor}
+          draggable={!!piece}
           onDragStart={() => handleDragStart(square)}
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}

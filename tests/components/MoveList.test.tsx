@@ -24,7 +24,7 @@ const mockDownloadTextFile = vi.mocked(downloadTextFile);
 describe("MoveList", () => {
   describe("Rendering", () => {
     it("should render empty list when no moves provided", () => {
-      render(<MoveList moves={[]} />);
+      render(<MoveList moves={[]} currentMoveIndex={-1} />);
       const moveList = screen.getByRole("list", { name: /move list/i });
       expect(moveList).toBeInTheDocument();
       expect(moveList).toBeEmptyDOMElement();
@@ -36,7 +36,7 @@ describe("MoveList", () => {
         { from: "e7", to: "e5" },
         { from: "g1", to: "f3" }
       ];
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={2} />);
 
       expect(screen.getByText(/1\./)).toBeInTheDocument();
       expect(screen.getByText(/e4/)).toBeInTheDocument();
@@ -51,7 +51,7 @@ describe("MoveList", () => {
         { from: "g1", to: "f3" },
         { from: "b8", to: "c6" }
       ];
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={3} />);
 
       // First move pair (1. e4 e5)
       expect(screen.getByText(/1\./)).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("MoveList", () => {
 
     it("should handle odd number of moves (white move without black response)", () => {
       const moves: Move[] = [{ from: "e2", to: "e4" }];
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={0} />);
 
       expect(screen.getByText(/1\./)).toBeInTheDocument();
       expect(screen.getByText(/e4/)).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe("MoveList", () => {
 
   describe("Accessibility", () => {
     it("should have proper ARIA label", () => {
-      render(<MoveList moves={[]} />);
+      render(<MoveList moves={[]} currentMoveIndex={-1} />);
       const moveList = screen.getByRole("list", { name: /move list/i });
       expect(moveList).toBeInTheDocument();
     });
@@ -84,7 +84,7 @@ describe("MoveList", () => {
     });
 
     it("should render copy button", () => {
-      render(<MoveList moves={[]} />);
+      render(<MoveList moves={[]} currentMoveIndex={-1} />);
       const copyButton = screen.getByRole("button", { name: /copy moves/i });
       expect(copyButton).toBeInTheDocument();
     });
@@ -98,7 +98,7 @@ describe("MoveList", () => {
         { from: "e7", to: "e5" }
       ];
 
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={1} />);
 
       const copyButton = screen.getByRole("button", { name: /copy moves/i });
       await user.click(copyButton);
@@ -118,7 +118,7 @@ describe("MoveList", () => {
       mockCopyTextToClipboard.mockRejectedValue(new Error("Clipboard access denied"));
 
       const moves: Move[] = [{ from: "e2", to: "e4" }];
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={0} />);
 
       const copyButton = screen.getByRole("button", { name: /copy moves/i });
       await user.click(copyButton);
@@ -134,7 +134,7 @@ describe("MoveList", () => {
       const user = userEvent.setup();
       mockCopyTextToClipboard.mockClear();
 
-      render(<MoveList moves={[]} />);
+      render(<MoveList moves={[]} currentMoveIndex={-1} />);
 
       const copyButton = screen.getByRole("button", { name: /copy moves/i });
       await user.click(copyButton);
@@ -152,7 +152,7 @@ describe("MoveList", () => {
     });
 
     it("should render download button", () => {
-      render(<MoveList moves={[]} />);
+      render(<MoveList moves={[]} currentMoveIndex={-1} />);
       const downloadButton = screen.getByRole("button", { name: /download moves/i });
       expect(downloadButton).toBeInTheDocument();
     });
@@ -166,7 +166,7 @@ describe("MoveList", () => {
         { from: "e7", to: "e5" }
       ];
 
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={1} />);
 
       const downloadButton = screen.getByRole("button", { name: /download moves/i });
       await user.click(downloadButton);
@@ -192,7 +192,7 @@ describe("MoveList", () => {
         { from: "e7", to: "e5" }
       ];
 
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={1} />);
 
       // For now, test that download button works (PGN option may be future enhancement)
       const downloadButton = screen.getByRole("button", { name: /download moves/i });
@@ -206,7 +206,7 @@ describe("MoveList", () => {
       mockDownloadTextFile.mockClear();
 
       const moves: Move[] = [{ from: "e2", to: "e4" }];
-      render(<MoveList moves={moves} />);
+      render(<MoveList moves={moves} currentMoveIndex={0} />);
 
       const downloadButton = screen.getByRole("button", { name: /download moves/i });
       await user.click(downloadButton);
