@@ -174,11 +174,56 @@ body {
   padding: 1.25rem 1.5rem;
 }
 
+.move-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .move-list-title {
   font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 1rem 0;
+  margin: 0;
   color: #e5e7eb;
+}
+
+.move-list-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.move-list-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.1);
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.move-list-button:hover {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.move-list-button:active {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.move-list-button-copy {
+  /* Additional styles for copy button if needed */
+}
+
+.move-list-button-download {
+  /* Additional styles for download button if needed */
 }
 
 .move-list {
@@ -272,8 +317,22 @@ body {
     padding: 1rem 1.1rem;
   }
 
+  .move-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .move-list-title {
     font-size: 1.125rem;
+  }
+
+  .move-list-actions {
+    width: 100%;
+  }
+
+  .move-list-button {
+    flex: 1;
+    min-width: 120px;
   }
 
   .move-list {
