@@ -72,7 +72,11 @@ export const App: React.FC = () => {
               {renderGameResultMessage()}
             </div>
           )}
-          <ChessBoard boardState={currentBoardState} onMove={isGameOver ? undefined : handleMove} />
+          <ChessBoard
+            boardState={currentBoardState}
+            onMove={isGameOver ? undefined : handleMove}
+            isInteractive={!isGameOver}
+          />
         </section>
         <aside className="app-sidebar">
           <MoveList
