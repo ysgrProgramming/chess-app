@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, test, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../src/App";
@@ -1492,6 +1492,118 @@ describe("App", () => {
         // Restore original function
         vi.restoreAllMocks();
       });
+    });
+  });
+
+  describe("Capture moves integration (Issue #44)", () => {
+    it("should reflect capture on board and move list - knight capture", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Set up position: 1. e4 e5 2. Nf3 Nc6 (Issue #44 scenario)
+      // Make moves to set up the position
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+      });
+
+      const g1Square = screen.getByLabelText(/square g1/i);
+      const f3Square = screen.getByLabelText(/square f3/i);
+      await user.click(g1Square);
+      await user.click(f3Square);
+
+      await waitFor(() => {
+        expect(within(f3Square).getByLabelText(/white knight/i)).toBeInTheDocument();
+      });
+
+      const b8Square = screen.getByLabelText(/square b8/i);
+      const c6Square = screen.getByLabelText(/square c6/i);
+      await user.click(b8Square);
+      await user.click(c6Square);
+
+      await waitFor(() => {
+        expect(within(c6Square).getByLabelText(/black knight/i)).toBeInTheDocument();
+      });
+
+      // Now attempt capture: Nxe5 (knight on f3 captures pawn on e5)
+      // Verify initial state: black pawn is on e5
+      expect(e5Square).toHaveTextContent("♟");
+      expect(within(f3Square).getByLabelText(/white knight/i)).toBeInTheDocument();
+
+      // Perform capture
+      await user.click(f3Square);
+      await user.click(e5Square);
+
+      await waitFor(
+        () => {
+          // Verify capture is reflected on board: knight should be on e5, pawn should be gone
+          expect(within(e5Square).getByLabelText(/white knight/i)).toBeInTheDocument();
+          expect(within(f3Square).queryByLabelText(/white knight/i)).not.toBeInTheDocument();
+          // Verify capture is reflected in move list with capture notation (Nxe5 format)
+          const moveList = screen.getByRole("list", { name: /move list|kifu/i });
+          expect(moveList.textContent).toMatch(/Nxe5/);
+        },
+        { timeout: 5000 }
+      );
+    });
+
+    it("should reflect capture on board and move list - pawn capture", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Set up a position where white pawn can capture black pawn
+      // First, make some opening moves
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      const d7Square = screen.getByLabelText(/square d7/i);
+      const d5Square = screen.getByLabelText(/square d5/i);
+      await user.click(d7Square);
+      await user.click(d5Square);
+
+      await waitFor(() => {
+        expect(d5Square).toHaveTextContent("♟");
+      });
+
+      // Now attempt pawn capture: exd5 (pawn on e4 captures pawn on d5)
+      // Verify initial state: black pawn is on d5, white pawn is on e4
+      expect(e4Square).toHaveTextContent("♙");
+      expect(d5Square).toHaveTextContent("♟");
+
+      // Perform capture
+      await user.click(e4Square);
+      await user.click(d5Square);
+
+      await waitFor(
+        () => {
+          // Verify capture is reflected on board: white pawn should be on d5
+          expect(d5Square).toHaveTextContent("♙");
+          expect(e4Square).not.toHaveTextContent("♙");
+          // Verify capture is reflected in move list with capture notation (exd5 format)
+          const moveList = screen.getByRole("list", { name: /move list|kifu/i });
+          expect(moveList.textContent).toMatch(/exd5/);
+        },
+        { timeout: 5000 }
+      );
     });
   });
 });

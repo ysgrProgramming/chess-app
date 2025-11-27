@@ -654,6 +654,9 @@ function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
     isEnPassantCapture = true;
   }
 
+  // Remove any piece currently on the destination square (capture)
+  newSquares.delete(move.to);
+
   // Move the piece
   newSquares.delete(move.from);
   newSquares.set(move.to, piece);
