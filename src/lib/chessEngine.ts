@@ -162,6 +162,13 @@ function validatePawnMove(
 
     // Double square forward from starting position
     if (fromRank === startRank && rankDelta === 2 * direction) {
+      // Check that intermediate square is clear
+      const intermediateRank = fromRank + direction;
+      const intermediateSquare = move.from[0] + intermediateRank.toString();
+      const intermediatePiece = boardState.squares.get(intermediateSquare);
+      if (intermediatePiece) {
+        return { valid: false, reason: "Path is blocked" };
+      }
       return { valid: true };
     }
 
