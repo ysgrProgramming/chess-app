@@ -127,7 +127,7 @@ function validatePieceMove(boardState: BoardState, move: Move, piece: Piece): Mo
     case "queen":
       return validateQueenMove(boardState, move, fileDelta, rankDelta);
     case "king":
-      return validateKingMove(fileDelta, rankDelta);
+      return validateKingMove(boardState, move, piece, fileDelta, rankDelta);
     default:
       return { valid: false, reason: "Unknown piece type" };
   }
@@ -266,15 +266,117 @@ function validateQueenMove(
 }
 
 /**
- * Validates king move.
+ * Validates king move, including castling.
  */
-function validateKingMove(fileDelta: number, rankDelta: number): MoveValidationResult {
+function validateKingMove(
+  boardState: BoardState,
+  move: Move,
+  piece: Piece,
+  fileDelta: number,
+  rankDelta: number
+): MoveValidationResult {
+  // Check for castling (king moves two squares horizontally)
+  if (rankDelta === 0 && Math.abs(fileDelta) === 2) {
+    return validateCastling(boardState, move, piece, fileDelta);
+  }
+
   // King moves one square in any direction
   if (Math.abs(fileDelta) > 1 || Math.abs(rankDelta) > 1) {
     return { valid: false, reason: "King can only move one square" };
   }
 
-  // Castling would be handled separately
+  return { valid: true };
+}
+
+/**
+ * Validates castling move.
+ */
+function validateCastling(
+  boardState: BoardState,
+  move: Move,
+  piece: Piece,
+  fileDelta: number
+): MoveValidationResult {
+  const isKingSide = fileDelta > 0;
+  const color = piece.color;
+  const kingRank = color === "white" ? 1 : 8;
+  const kingSquare = `e${kingRank}`;
+  const rookSquare = isKingSide ? `h${kingRank}` : `a${kingRank}`;
+  const kingDestination = isKingSide ? `g${kingRank}` : `c${kingRank}`;
+  const transitSquare = isKingSide ? `f${kingRank}` : `d${kingRank}`;
+
+  // Check if king is on starting square
+  if (move.from !== kingSquare) {
+    return { valid: false, reason: "Castling can only be performed from king's starting square" };
+  }
+
+  // Check if rook is on starting square
+  const rook = boardState.squares.get(rookSquare);
+  if (!rook || rook.type !== "rook" || rook.color !== color) {
+    return { valid: false, reason: "Castling requires rook on starting square" };
+  }
+
+  // Check castling rights
+  const castlingRight = isKingSide
+    ? color === "white"
+      ? boardState.castlingRights.whiteKingSide
+      : boardState.castlingRights.blackKingSide
+    : color === "white"
+      ? boardState.castlingRights.whiteQueenSide
+      : boardState.castlingRights.blackQueenSide;
+
+  if (!castlingRight) {
+    return { valid: false, reason: "Castling rights have been lost" };
+  }
+
+  // Check if path is clear
+  const pathSquares = isKingSide ? [transitSquare] : [transitSquare, `b${kingRank}`];
+  for (const square of pathSquares) {
+    if (boardState.squares.has(square)) {
+      return { valid: false, reason: "Path between king and rook is not clear" };
+    }
+  }
+
+  // Check if king is in check
+  if (isKingInCheck(boardState, color)) {
+    return { valid: false, reason: "Cannot castle while in check" };
+  }
+
+  // Check if transit square is under attack
+  const opponentColor: Color = color === "white" ? "black" : "white";
+  const transitSquares = new Map(boardState.squares);
+  transitSquares.delete(kingSquare);
+  transitSquares.set(transitSquare, piece);
+  const simulatedTransitState: BoardState = {
+    squares: transitSquares,
+    activeColor: opponentColor,
+    castlingRights: boardState.castlingRights,
+    enPassantTarget: boardState.enPassantTarget,
+    halfMoveClock: boardState.halfMoveClock,
+    fullMoveNumber: boardState.fullMoveNumber
+  };
+
+  if (isKingInCheck(simulatedTransitState, color)) {
+    return { valid: false, reason: "Cannot castle through attacked square" };
+  }
+
+  // Check if destination square is under attack
+  const destSquares = new Map(boardState.squares);
+  destSquares.delete(kingSquare);
+  destSquares.set(kingDestination, piece);
+  const simulatedDestState: BoardState = {
+    squares: destSquares,
+    activeColor: opponentColor,
+    castlingRights: boardState.castlingRights,
+    enPassantTarget: boardState.enPassantTarget,
+    halfMoveClock: boardState.halfMoveClock,
+    fullMoveNumber: boardState.fullMoveNumber
+  };
+
+  if (isKingInCheck(simulatedDestState, color)) {
+    return { valid: false, reason: "Cannot castle to attacked square" };
+  }
+
   return { valid: true };
 }
 
@@ -489,6 +591,30 @@ function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
     throw new Error("Cannot apply move: no piece at source square");
   }
 
+  // Handle castling
+  if (piece.type === "king") {
+    const fromFile = move.from.charCodeAt(0) - 97;
+    const fromRank = parseInt(move.from[1], 10);
+    const toFile = move.to.charCodeAt(0) - 97;
+    const toRank = parseInt(move.to[1], 10);
+    const fileDelta = toFile - fromFile;
+    const rankDelta = toRank - fromRank;
+
+    // Check if this is a castling move (king moves two squares horizontally)
+    if (rankDelta === 0 && Math.abs(fileDelta) === 2) {
+      const isKingSide = fileDelta > 0;
+      const rookSquare = isKingSide ? `h${fromRank}` : `a${fromRank}`;
+      const rookDestination = isKingSide ? `f${fromRank}` : `d${fromRank}`;
+      const rook = newSquares.get(rookSquare);
+
+      if (rook && rook.type === "rook" && rook.color === piece.color) {
+        // Move the rook
+        newSquares.delete(rookSquare);
+        newSquares.set(rookDestination, rook);
+      }
+    }
+  }
+
   // Move the piece
   newSquares.delete(move.from);
   newSquares.set(move.to, piece);
@@ -500,8 +626,14 @@ function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
     newSquares.set(move.to, { ...piece, type: promotedType });
   }
 
-  // Update castling rights if king or rook moves
-  const newCastlingRights = updateCastlingRights(boardState.castlingRights, move, piece);
+  // Update castling rights if king or rook moves or is captured
+  const capturedPiece = boardState.squares.get(move.to);
+  const newCastlingRights = updateCastlingRights(
+    boardState.castlingRights,
+    move,
+    piece,
+    capturedPiece
+  );
 
   // Update en passant target (simplified - would need more logic for actual en passant)
   const newEnPassantTarget =
@@ -537,7 +669,8 @@ function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
 function updateCastlingRights(
   currentRights: CastlingRights,
   move: Move,
-  piece: Piece
+  piece: Piece,
+  capturedPiece?: Piece
 ): CastlingRights {
   const newRights = { ...currentRights };
 
@@ -561,6 +694,19 @@ function updateCastlingRights(
     } else if (move.from === "a8") {
       newRights.blackQueenSide = false;
     } else if (move.from === "h8") {
+      newRights.blackKingSide = false;
+    }
+  }
+
+  // If rook is captured, lose castling rights for that side
+  if (capturedPiece && capturedPiece.type === "rook") {
+    if (move.to === "a1") {
+      newRights.whiteQueenSide = false;
+    } else if (move.to === "h1") {
+      newRights.whiteKingSide = false;
+    } else if (move.to === "a8") {
+      newRights.blackQueenSide = false;
+    } else if (move.to === "h8") {
       newRights.blackKingSide = false;
     }
   }
