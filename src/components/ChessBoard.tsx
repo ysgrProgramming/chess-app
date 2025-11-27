@@ -108,9 +108,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         return;
       }
 
-      const stateForMove: BoardState =
-        externalBoardState != null ? { ...boardState, activeColor: movingPiece.color } : boardState;
-
+      const stateForMove: BoardState = boardState;
       const move: Move = { from, to };
       const validation = validateMove(stateForMove, move);
 

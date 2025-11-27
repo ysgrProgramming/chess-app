@@ -3,11 +3,12 @@ import React, { useCallback, useMemo, useReducer } from "react";
 import { ChessBoard } from "./components/ChessBoard";
 import { MoveList } from "./components/MoveList";
 import { createInitialBoardState, applyMove } from "./lib/chessEngine";
-import type { Move, BoardState } from "./lib/types";
+import type { Move, BoardState, Color } from "./lib/types";
 
 interface GameState {
   moveHistory: readonly Move[];
   currentMoveIndex: number;
+  isPreviewing: boolean;
 }
 
 type GameAction =
@@ -26,14 +27,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const newHistory = [...truncatedHistory, move];
         return {
           moveHistory: newHistory,
-          currentMoveIndex: newHistory.length - 1
+          currentMoveIndex: newHistory.length - 1,
+          isPreviewing: false
         };
       } else {
         // Normal case: append to end
         const newHistory = [...state.moveHistory, move];
         return {
           moveHistory: newHistory,
-          currentMoveIndex: newHistory.length - 1
+          currentMoveIndex: newHistory.length - 1,
+          isPreviewing: false
         };
       }
     }
@@ -41,7 +44,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.currentMoveIndex >= 0) {
         return {
           ...state,
-          currentMoveIndex: state.currentMoveIndex - 1
+          currentMoveIndex: state.currentMoveIndex - 1,
+          isPreviewing: false
         };
       }
       return state;
@@ -49,7 +53,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "RESET": {
       return {
         moveHistory: [],
-        currentMoveIndex: -1
+        currentMoveIndex: -1,
+        isPreviewing: false
       };
     }
     case "JUMP_TO_MOVE": {
@@ -57,7 +62,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (targetIndex >= -1 && targetIndex < state.moveHistory.length) {
         return {
           ...state,
-          currentMoveIndex: targetIndex
+          currentMoveIndex: targetIndex,
+          isPreviewing:
+            targetIndex < state.moveHistory.length - 1 ||
+            (targetIndex === -1 && state.moveHistory.length > 0)
         };
       }
       return state;
@@ -68,9 +76,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 }
 
 export const App: React.FC = () => {
-  const [{ moveHistory, currentMoveIndex }, dispatch] = useReducer(gameReducer, {
+  const [{ moveHistory, currentMoveIndex, isPreviewing }, dispatch] = useReducer(gameReducer, {
     moveHistory: [],
-    currentMoveIndex: -1
+    currentMoveIndex: -1,
+    isPreviewing: false
   });
 
   /**
@@ -78,17 +87,22 @@ export const App: React.FC = () => {
    */
   const currentBoardState = useMemo((): BoardState => {
     let boardState = createInitialBoardState();
+    let lastAppliedMoveColor: Color | null = null;
     const movesToApply = moveHistory.slice(0, currentMoveIndex + 1);
     for (const move of movesToApply) {
       const movingPiece = boardState.squares.get(move.from);
       if (!movingPiece) {
         break;
       }
+      lastAppliedMoveColor = movingPiece.color;
       const stateForMove: BoardState = { ...boardState, activeColor: movingPiece.color };
       boardState = applyMove(stateForMove, move);
     }
+    if (isPreviewing && lastAppliedMoveColor) {
+      boardState = { ...boardState, activeColor: lastAppliedMoveColor };
+    }
     return boardState;
-  }, [moveHistory, currentMoveIndex]);
+  }, [moveHistory, currentMoveIndex, isPreviewing]);
 
   /**
    * Handles a new move, implementing linear history (overwrites future moves if any).
