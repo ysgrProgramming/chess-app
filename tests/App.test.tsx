@@ -771,4 +771,51 @@ describe("App", () => {
       });
     });
   });
+
+  describe("Responsive layout (Issue #11)", () => {
+    it("should render board and kifu in the layout structure", () => {
+      renderApp();
+
+      const boardSection = document.querySelector(".app-board-section");
+      const sidebar = document.querySelector(".app-sidebar");
+      const content = document.querySelector(".app-content");
+
+      expect(boardSection).toBeInTheDocument();
+      expect(sidebar).toBeInTheDocument();
+      expect(content).toBeInTheDocument();
+
+      // Verify that content container has the expected class for styling
+      expect(content).toHaveClass("app-content");
+    });
+
+    it("should render both board and kifu elements", () => {
+      renderApp();
+
+      const boardSection = document.querySelector(".app-board-section");
+      const sidebar = document.querySelector(".app-sidebar");
+
+      expect(boardSection).toBeInTheDocument();
+      expect(sidebar).toBeInTheDocument();
+
+      // Both elements should be rendered and accessible
+      const board = screen.getByRole("grid", { name: "Chess board" });
+      const moveList = screen.getByRole("list", { name: /move list/i });
+
+      expect(board).toBeInTheDocument();
+      expect(moveList).toBeInTheDocument();
+    });
+
+    it("should have responsive CSS classes applied", () => {
+      renderApp();
+
+      const content = document.querySelector(".app-content");
+      const boardSection = document.querySelector(".app-board-section");
+      const sidebar = document.querySelector(".app-sidebar");
+
+      // Verify CSS classes are present for responsive styling
+      expect(content).toHaveClass("app-content");
+      expect(boardSection).toHaveClass("app-board-section");
+      expect(sidebar).toHaveClass("app-sidebar");
+    });
+  });
 });
