@@ -379,5 +379,64 @@ describe("ChessBoard - Responsive Layout and Mobile Gestures", () => {
         expect(e4SquareAfterMove).not.toHaveTextContent("♙");
       });
     });
+
+    it("should maintain selection after tap without double-triggering from synthetic click", async () => {
+      render(<ChessBoard />);
+
+      const e2Square = screen.getByLabelText(/square e2/i);
+
+      // Simulate touch tap on e2
+      const touchStartE2 = createTouchEvent("touchstart", 100, 100, e2Square);
+      fireEvent(e2Square, touchStartE2);
+      const touchEndE2 = createTouchEvent("touchend", 101, 101, e2Square);
+      fireEvent(e2Square, touchEndE2);
+
+      // Wait for selection to be set
+      await waitFor(() => {
+        expect(e2Square).toHaveClass("selected");
+      });
+
+      // Simulate synthetic click event that browser would fire after touch
+      // This should NOT cause deselection if we properly prevent it
+      const clickEvent = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true
+      });
+      fireEvent(e2Square, clickEvent);
+
+      // Selection should remain active (not deselected by synthetic click)
+      await waitFor(
+        () => {
+          expect(e2Square).toHaveClass("selected");
+        },
+        { timeout: 100 }
+      );
+    });
+
+    it("should allow deselection by tapping the same square twice", async () => {
+      render(<ChessBoard />);
+
+      const e2Square = screen.getByLabelText(/square e2/i);
+
+      // First tap: select
+      const touchStart1 = createTouchEvent("touchstart", 100, 100, e2Square);
+      fireEvent(e2Square, touchStart1);
+      const touchEnd1 = createTouchEvent("touchend", 101, 101, e2Square);
+      fireEvent(e2Square, touchEnd1);
+
+      await waitFor(() => {
+        expect(e2Square).toHaveClass("selected");
+      });
+
+      // Second tap: deselect
+      const touchStart2 = createTouchEvent("touchstart", 100, 100, e2Square);
+      fireEvent(e2Square, touchStart2);
+      const touchEnd2 = createTouchEvent("touchend", 101, 101, e2Square);
+      fireEvent(e2Square, touchEnd2);
+
+      await waitFor(() => {
+        expect(e2Square).not.toHaveClass("selected");
+      });
+    });
   });
 });
