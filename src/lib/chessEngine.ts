@@ -174,7 +174,23 @@ function validatePawnMove(
     if (destinationPiece && destinationPiece.color !== piece.color) {
       return { valid: true };
     }
-    // En passant check would go here
+    // En passant capture check
+    if (boardState.enPassantTarget === move.to) {
+      // Check if pawn is on correct rank for en passant
+      // White pawns on rank 5 can capture en passant, black pawns on rank 4
+      const enPassantRank = piece.color === "white" ? 5 : 4;
+      if (fromRank === enPassantRank) {
+        // Check if there's an opponent pawn on the adjacent square
+        const fromFile = move.from.charCodeAt(0);
+        const toFile = move.to.charCodeAt(0);
+        const adjacentFile = fromFile < toFile ? fromFile + 1 : fromFile - 1;
+        const adjacentSquare = String.fromCharCode(adjacentFile) + fromRank.toString();
+        const adjacentPiece = boardState.squares.get(adjacentSquare);
+        if (adjacentPiece && adjacentPiece.type === "pawn" && adjacentPiece.color !== piece.color) {
+          return { valid: true };
+        }
+      }
+    }
     return { valid: false, reason: "Pawn can only capture diagonally" };
   }
 
@@ -617,6 +633,19 @@ function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
     }
   }
 
+  // Handle en passant capture
+  let isEnPassantCapture = false;
+  if (piece.type === "pawn" && boardState.enPassantTarget === move.to) {
+    const fromFile = move.from.charCodeAt(0);
+    const fromRank = parseInt(move.from[1], 10);
+    const toFile = move.to.charCodeAt(0);
+    // Remove the captured pawn from the adjacent square
+    const adjacentFile = fromFile < toFile ? fromFile + 1 : fromFile - 1;
+    const capturedPawnSquare = String.fromCharCode(adjacentFile) + fromRank.toString();
+    newSquares.delete(capturedPawnSquare);
+    isEnPassantCapture = true;
+  }
+
   // Move the piece
   newSquares.delete(move.from);
   newSquares.set(move.to, piece);
@@ -637,16 +666,27 @@ function applyMoveInternal(boardState: BoardState, move: Move): BoardState {
     capturedPiece
   );
 
-  // Update en passant target (simplified - would need more logic for actual en passant)
-  const newEnPassantTarget =
-    piece.type === "pawn" && Math.abs(parseInt(move.to[1], 10) - parseInt(move.from[1], 10)) === 2
-      ? move.to
-      : null;
+  // Update en passant target
+  // Set when pawn makes a double-step move (target is the intermediate square), clear otherwise
+  let newEnPassantTarget: Square | null = null;
+  if (piece.type === "pawn") {
+    const fromRank = parseInt(move.from[1], 10);
+    const toRank = parseInt(move.to[1], 10);
+    const rankDelta = toRank - fromRank;
+    if (Math.abs(rankDelta) === 2) {
+      // Set en passant target to the intermediate square
+      const intermediateRank = fromRank + rankDelta / 2;
+      newEnPassantTarget = move.to[0] + intermediateRank.toString();
+    }
+  }
 
-  // Update half move clock (increments for non-pawn moves and captures)
+  // Update half move clock (increments for non-pawn moves and non-captures)
+  // Reset for pawn moves or captures (including en passant)
   const destinationPiece = boardState.squares.get(move.to);
   const newHalfMoveClock =
-    piece.type === "pawn" || destinationPiece ? 0 : boardState.halfMoveClock + 1;
+    piece.type === "pawn" || destinationPiece || isEnPassantCapture
+      ? 0
+      : boardState.halfMoveClock + 1;
 
   // Update full move number (increments when black moves)
   const newFullMoveNumber =
