@@ -329,8 +329,10 @@ function validateCastling(
     return { valid: false, reason: "Castling rights have been lost" };
   }
 
-  // Check if path is clear
-  const pathSquares = isKingSide ? [transitSquare] : [transitSquare, `b${kingRank}`];
+  // Check if path is clear (including destination square - castling cannot capture)
+  const pathSquares = isKingSide
+    ? [transitSquare, kingDestination]
+    : [transitSquare, `b${kingRank}`, kingDestination];
   for (const square of pathSquares) {
     if (boardState.squares.has(square)) {
       return { valid: false, reason: "Path between king and rook is not clear" };

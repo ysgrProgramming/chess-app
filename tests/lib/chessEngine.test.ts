@@ -451,6 +451,32 @@ describe("Chess Engine", () => {
         }
       });
 
+      it("should reject castling when destination square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["h1", { color: "white", type: "rook" }],
+            ["e8", { color: "black", type: "king" }],
+            ["g1", { color: "black", type: "pawn" }] // Occupying destination square
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: true,
+            whiteQueenSide: true,
+            blackKingSide: true,
+            blackQueenSide: true
+          }
+        };
+        const move: Move = { from: "e1", to: "g1" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toContain("not clear");
+        }
+      });
+
       it("should apply white king-side castling correctly", () => {
         const boardState: BoardState = {
           ...initialBoardState,
@@ -505,6 +531,33 @@ describe("Chess Engine", () => {
         expect(newBoardState.squares.get("f8")).toEqual({ color: "black", type: "rook" });
         expect(newBoardState.castlingRights.blackKingSide).toBe(false);
         expect(newBoardState.castlingRights.blackQueenSide).toBe(false);
+      });
+
+      it("should reject black king-side castling when destination square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["h1", { color: "white", type: "rook" }],
+            ["e8", { color: "black", type: "king" }],
+            ["h8", { color: "black", type: "rook" }],
+            ["g8", { color: "white", type: "pawn" }] // Occupying destination square
+          ]),
+          activeColor: "black",
+          castlingRights: {
+            whiteKingSide: true,
+            whiteQueenSide: true,
+            blackKingSide: true,
+            blackQueenSide: true
+          }
+        };
+        const move: Move = { from: "e8", to: "g8" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toContain("not clear");
+        }
       });
     });
 
@@ -602,6 +655,32 @@ describe("Chess Engine", () => {
         expect(result.valid).toBe(false);
       });
 
+      it("should reject queen-side castling when destination square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["a1", { color: "white", type: "rook" }],
+            ["e8", { color: "black", type: "king" }],
+            ["c1", { color: "black", type: "pawn" }] // Occupying destination square
+          ]),
+          activeColor: "white",
+          castlingRights: {
+            whiteKingSide: true,
+            whiteQueenSide: true,
+            blackKingSide: true,
+            blackQueenSide: true
+          }
+        };
+        const move: Move = { from: "e1", to: "c1" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toContain("not clear");
+        }
+      });
+
       it("should apply white queen-side castling correctly", () => {
         const boardState: BoardState = {
           ...initialBoardState,
@@ -656,6 +735,33 @@ describe("Chess Engine", () => {
         expect(newBoardState.squares.get("d8")).toEqual({ color: "black", type: "rook" });
         expect(newBoardState.castlingRights.blackKingSide).toBe(false);
         expect(newBoardState.castlingRights.blackQueenSide).toBe(false);
+      });
+
+      it("should reject black queen-side castling when destination square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e1", { color: "white", type: "king" }],
+            ["a1", { color: "white", type: "rook" }],
+            ["e8", { color: "black", type: "king" }],
+            ["a8", { color: "black", type: "rook" }],
+            ["c8", { color: "white", type: "pawn" }] // Occupying destination square
+          ]),
+          activeColor: "black",
+          castlingRights: {
+            whiteKingSide: true,
+            whiteQueenSide: true,
+            blackKingSide: true,
+            blackQueenSide: true
+          }
+        };
+        const move: Move = { from: "e8", to: "c8" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toContain("not clear");
+        }
       });
     });
 
