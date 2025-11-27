@@ -1102,4 +1102,164 @@ describe("Chess Engine", () => {
       });
     });
   });
+
+  describe("Pawn double-step path clearance", () => {
+    let initialBoardState: BoardState;
+
+    beforeEach(() => {
+      initialBoardState = createInitialBoardState();
+    });
+
+    describe("White pawn double-step", () => {
+      it("should validate white pawn double-step when path is clear", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e2", { color: "white", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white"
+        };
+        const move: Move = { from: "e2", to: "e4" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it("should reject white pawn double-step when intermediate square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e2", { color: "white", type: "pawn" }],
+            ["e3", { color: "black", type: "pawn" }], // Blocking intermediate square
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white"
+        };
+        const move: Move = { from: "e2", to: "e4" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toBeDefined();
+        }
+      });
+
+      it("should reject white pawn double-step when destination square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e2", { color: "white", type: "pawn" }],
+            ["e4", { color: "black", type: "pawn" }], // Blocking destination square
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white"
+        };
+        const move: Move = { from: "e2", to: "e4" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toBeDefined();
+        }
+      });
+    });
+
+    describe("Black pawn double-step", () => {
+      it("should validate black pawn double-step when path is clear", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e7", { color: "black", type: "pawn" }],
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "black"
+        };
+        const move: Move = { from: "e7", to: "e5" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it("should reject black pawn double-step when intermediate square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e7", { color: "black", type: "pawn" }],
+            ["e6", { color: "white", type: "pawn" }], // Blocking intermediate square
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "black"
+        };
+        const move: Move = { from: "e7", to: "e5" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toBeDefined();
+        }
+      });
+
+      it("should reject black pawn double-step when destination square is occupied", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e7", { color: "black", type: "pawn" }],
+            ["e5", { color: "white", type: "pawn" }], // Blocking destination square
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "black"
+        };
+        const move: Move = { from: "e7", to: "e5" };
+        const result = validateMove(boardState, move);
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.reason).toBeDefined();
+        }
+      });
+    });
+
+    describe("getLegalMoves respects path clearance", () => {
+      it("should not include double-step in legal moves when intermediate square is blocked", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e2", { color: "white", type: "pawn" }],
+            ["e3", { color: "black", type: "pawn" }], // Blocking intermediate square
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white"
+        };
+        const legalMoves = getLegalMoves(boardState, "e2");
+
+        expect(legalMoves).not.toContain("e4"); // Double-step should not be legal
+        expect(legalMoves).not.toContain("e3"); // Single-step should also be blocked (forward moves require empty square)
+        // Diagonal capture moves may still be legal
+      });
+
+      it("should not include double-step in legal moves when destination square is blocked", () => {
+        const boardState: BoardState = {
+          ...initialBoardState,
+          squares: new Map([
+            ["e2", { color: "white", type: "pawn" }],
+            ["e4", { color: "black", type: "pawn" }], // Blocking destination square
+            ["e1", { color: "white", type: "king" }],
+            ["e8", { color: "black", type: "king" }]
+          ]),
+          activeColor: "white"
+        };
+        const legalMoves = getLegalMoves(boardState, "e2");
+
+        expect(legalMoves).not.toContain("e4"); // Double-step should not be legal
+      });
+    });
+  });
 });
