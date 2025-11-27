@@ -1,10 +1,12 @@
 import React from "react";
-import { describe, expect, it, test, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, test, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../src/App";
 import { GameStateProvider } from "../src/contexts/GameStateContext";
+import * as chessEngine from "../src/lib/chessEngine";
+import type { BoardState } from "../src/lib/types";
 
 /**
  * Helper function to render App with GameStateProvider.
@@ -816,6 +818,244 @@ describe("App", () => {
       expect(content).toHaveClass("app-content");
       expect(boardSection).toHaveClass("app-board-section");
       expect(sidebar).toHaveClass("app-sidebar");
+    });
+  });
+
+  describe("Pawn promotion (Issue #34)", () => {
+    it("should show promotion dialog when pawn reaches final rank", async () => {
+      const user = userEvent.setup();
+
+      // Import ChessBoard component
+      const { ChessBoard } = await import("../src/components/ChessBoard");
+
+      // Set up board: white pawn on e7, can move to e8
+      // Create a custom board state with white pawn on e7
+      const boardState: BoardState = {
+        squares: new Map([
+          ["e7", { color: "white", type: "pawn" }],
+          ["e1", { color: "white", type: "king" }],
+          ["d8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      // Render ChessBoard with custom board state
+      const handleMove = vi.fn();
+      render(<ChessBoard boardState={boardState} onMove={handleMove} />);
+
+      // Click on e7 pawn - use getAllByLabelText and filter by white pawn
+      const e7Squares = screen.getAllByLabelText(/square e7/i);
+      const e7Square = e7Squares.find((el) => el.textContent?.includes("♙"));
+      expect(e7Square).toBeDefined();
+      await user.click(e7Square!);
+
+      // Click on e8 to trigger promotion
+      const e8Square = screen.getByLabelText(/square e8/i);
+      await user.click(e8Square);
+
+      // Verify promotion dialog appears
+      await waitFor(() => {
+        expect(screen.getByRole("dialog", { name: /select promotion piece/i })).toBeInTheDocument();
+      });
+    });
+
+    it("should apply promotion move with selected piece and update SAN notation", async () => {
+      const user = userEvent.setup();
+
+      // Import ChessBoard component
+      const { ChessBoard } = await import("../src/components/ChessBoard");
+
+      // Set up board: white pawn on e7, can move to e8
+      // Create a custom board state with white pawn on e7
+      const boardState: BoardState = {
+        squares: new Map([
+          ["e7", { color: "white", type: "pawn" }],
+          ["e1", { color: "white", type: "king" }],
+          ["d8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      // Render ChessBoard with custom board state
+      const handleMove = vi.fn();
+      render(<ChessBoard boardState={boardState} onMove={handleMove} />);
+
+      // Click on e7 pawn - use getAllByLabelText and filter by white pawn
+      const e7Squares = screen.getAllByLabelText(/square e7/i);
+      const e7Square = e7Squares.find((el) => el.textContent?.includes("♙"));
+      expect(e7Square).toBeDefined();
+      await user.click(e7Square!);
+
+      // Click on e8 to trigger promotion
+      const e8Square = screen.getByLabelText(/square e8/i);
+      await user.click(e8Square);
+
+      // Wait for promotion dialog
+      await waitFor(() => {
+        expect(screen.getByRole("dialog", { name: /select promotion piece/i })).toBeInTheDocument();
+      });
+
+      // Select knight promotion
+      const knightButton = screen.getByRole("button", { name: /promote to knight/i });
+      await user.click(knightButton);
+
+      // Verify move was called with promotion
+      await waitFor(() => {
+        expect(handleMove).toHaveBeenCalledWith(
+          expect.objectContaining({
+            from: "e7",
+            to: "e8",
+            promotion: "knight"
+          })
+        );
+      });
+    });
+
+    it("should cancel move when promotion dialog is cancelled", async () => {
+      const user = userEvent.setup();
+
+      // Import ChessBoard component
+      const { ChessBoard } = await import("../src/components/ChessBoard");
+
+      // Set up board: white pawn on e7, can move to e8
+      // Create a custom board state with white pawn on e7
+      const boardState: BoardState = {
+        squares: new Map([
+          ["e7", { color: "white", type: "pawn" }],
+          ["e1", { color: "white", type: "king" }],
+          ["d8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      // Render ChessBoard with custom board state
+      const handleMove = vi.fn();
+      render(<ChessBoard boardState={boardState} onMove={handleMove} />);
+
+      // Click on e7 pawn - use getAllByLabelText and filter by white pawn
+      const e7Squares = screen.getAllByLabelText(/square e7/i);
+      const e7Square = e7Squares.find((el) => el.textContent?.includes("♙"));
+      expect(e7Square).toBeDefined();
+      expect(e7Square).toHaveTextContent("♙");
+
+      await user.click(e7Square!);
+
+      // Click on e8 to trigger promotion
+      const e8Square = screen.getByLabelText(/square e8/i);
+      await user.click(e8Square);
+
+      // Wait for promotion dialog
+      await waitFor(() => {
+        expect(screen.getByRole("dialog", { name: /select promotion piece/i })).toBeInTheDocument();
+      });
+
+      // Cancel promotion
+      const cancelButton = screen.getByRole("button", { name: /cancel promotion/i });
+      await user.click(cancelButton);
+
+      // Verify dialog is closed
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("dialog", { name: /select promotion piece/i })
+        ).not.toBeInTheDocument();
+      });
+
+      // Verify move was not called
+      expect(handleMove).not.toHaveBeenCalled();
+
+      // Verify pawn is still on e7
+      expect(e7Square).toHaveTextContent("♙");
+    });
+
+    it("should update move history and SAN notation when promotion is selected in App", async () => {
+      const user = userEvent.setup();
+
+      // Use a custom initial board state where white pawn is already on e7
+      const initialBoardState: BoardState = {
+        squares: new Map([
+          ["e7", { color: "white", type: "pawn" }],
+          ["e1", { color: "white", type: "king" }],
+          ["d8", { color: "black", type: "king" }]
+        ]),
+        activeColor: "white",
+        castlingRights: {
+          whiteKingSide: false,
+          whiteQueenSide: false,
+          blackKingSide: false,
+          blackQueenSide: false
+        },
+        enPassantTarget: null,
+        halfMoveClock: 0,
+        fullMoveNumber: 1
+      };
+
+      const createInitialBoardStateSpy = vi
+        .spyOn(chessEngine, "createInitialBoardState")
+        .mockReturnValue(initialBoardState);
+
+      try {
+        renderApp();
+
+        // Verify pawn is on e7
+        const e7Square = screen.getByLabelText(/square e7/i);
+        expect(e7Square).toHaveTextContent("♙");
+
+        // Trigger promotion via App UI
+        await user.click(e7Square);
+        const e8Square = screen.getByLabelText(/square e8/i);
+        await user.click(e8Square);
+
+        // Wait for promotion dialog
+        await waitFor(() => {
+          expect(
+            screen.getByRole("dialog", { name: /select promotion piece/i })
+          ).toBeInTheDocument();
+        });
+
+        // Select knight promotion
+        const knightButton = screen.getByRole("button", { name: /promote to knight/i });
+        await user.click(knightButton);
+
+        // Verify move history shows promotion with SAN notation (e8=N)
+        await waitFor(() => {
+          expect(screen.getByText(/e8=N/)).toBeInTheDocument();
+        });
+
+        // Verify the board shows knight on e8
+        await waitFor(() => {
+          const e8SquareAfter = screen.getByLabelText(/square e8/i);
+          expect(e8SquareAfter).toHaveTextContent("♞");
+        });
+      } finally {
+        createInitialBoardStateSpy.mockRestore();
+      }
     });
   });
 });

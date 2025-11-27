@@ -10,7 +10,9 @@ import {
   applyMove,
   getLegalMoves
 } from "../lib/chessEngine";
-import type { BoardState, Move, Square } from "../lib/types";
+import type { BoardState, Move, Square, PieceType } from "../lib/types";
+
+import { PromotionDialog } from "./PromotionDialog";
 
 /**
  * Unicode chess piece symbols.
@@ -81,6 +83,10 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
     null
   );
   const [isDragging, setIsDragging] = useState(false);
+  const [pendingPromotionMove, setPendingPromotionMove] = useState<{
+    from: Square;
+    to: Square;
+  } | null>(null);
 
   // Reset selection when external board state changes
   useEffect(() => {
@@ -89,6 +95,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       setDraggedSquare(null);
       setTouchStartPosition(null);
       setIsDragging(false);
+      setPendingPromotionMove(null);
     }
   }, [externalBoardState]);
 
@@ -105,17 +112,27 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   }, [boardState, selectedSquare, draggedSquare]);
 
   /**
-   * Attempts to make a move, validating with the rules engine.
+   * Checks if a pawn move requires promotion.
    */
-  const handleMoveAttempt = useCallback(
-    (from: Square, to: Square) => {
-      const movingPiece = boardState.squares.get(from);
-      if (!movingPiece) {
-        return;
+  const requiresPromotion = useCallback(
+    (from: Square, to: Square): boolean => {
+      const piece = boardState.squares.get(from);
+      if (!piece || piece.type !== "pawn") {
+        return false;
       }
+      const toRank = parseInt(to[1], 10);
+      return (piece.color === "white" && toRank === 8) || (piece.color === "black" && toRank === 1);
+    },
+    [boardState]
+  );
 
+  /**
+   * Applies a move with optional promotion.
+   */
+  const applyMoveWithPromotion = useCallback(
+    (from: Square, to: Square, promotion?: PieceType) => {
       const stateForMove: BoardState = boardState;
-      const move: Move = { from, to };
+      const move: Move = { from, to, promotion };
       const validation = validateMove(stateForMove, move);
 
       if (validation.valid) {
@@ -128,10 +145,56 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
           onMove(move);
         }
       }
-      // If invalid, the move is simply not applied (visual revert happens automatically)
     },
-    [boardState, onMove]
+    [boardState, externalBoardState, onMove]
   );
+
+  /**
+   * Attempts to make a move, validating with the rules engine.
+   * Shows promotion dialog if pawn reaches final rank.
+   */
+  const handleMoveAttempt = useCallback(
+    (from: Square, to: Square) => {
+      const movingPiece = boardState.squares.get(from);
+      if (!movingPiece) {
+        return;
+      }
+
+      // Check if this is a promotion move
+      if (requiresPromotion(from, to)) {
+        // Show promotion dialog
+        setPendingPromotionMove({ from, to });
+        return;
+      }
+
+      // Regular move
+      applyMoveWithPromotion(from, to);
+    },
+    [boardState, requiresPromotion, applyMoveWithPromotion]
+  );
+
+  /**
+   * Handles promotion piece selection.
+   */
+  const handlePromotionSelect = useCallback(
+    (promotionType: PieceType) => {
+      if (pendingPromotionMove) {
+        applyMoveWithPromotion(pendingPromotionMove.from, pendingPromotionMove.to, promotionType);
+        setPendingPromotionMove(null);
+      }
+    },
+    [pendingPromotionMove, applyMoveWithPromotion]
+  );
+
+  /**
+   * Handles promotion cancellation.
+   */
+  const handlePromotionCancel = useCallback(() => {
+    setPendingPromotionMove(null);
+    // Reset selection state
+    setSelectedSquare(null);
+    setDraggedSquare(null);
+  }, []);
 
   /**
    * Handles piece selection (for tap/click mode).
@@ -364,6 +427,10 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
     ]
   );
 
+  const pawnColor = pendingPromotionMove
+    ? (boardState.squares.get(pendingPromotionMove.from)?.color ?? "white")
+    : "white";
+
   return (
     <div className="chess-board-container">
       <div className="chess-turn-indicator">
@@ -374,6 +441,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
           Array.from({ length: 8 }, (_, file) => renderSquare(file, rank))
         )}
       </div>
+      {pendingPromotionMove && (
+        <PromotionDialog
+          pawnColor={pawnColor}
+          onSelect={handlePromotionSelect}
+          onCancel={handlePromotionCancel}
+        />
+      )}
     </div>
   );
 };
