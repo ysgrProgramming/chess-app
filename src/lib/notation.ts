@@ -2,8 +2,8 @@
  * Chess notation utilities for converting moves to Standard Algebraic Notation (SAN).
  */
 
-import type { BoardState, Move, Piece, Square } from "./types";
-import { getLegalMoves } from "./chessEngine";
+import type { BoardState, Move, Piece, Square, Color } from "./types";
+import { getLegalMoves, applyMove, evaluateGameResult, isKingInCheck } from "./chessEngine";
 
 /**
  * Piece type to SAN symbol mapping.
@@ -30,21 +30,58 @@ export function moveToSAN(boardState: BoardState, move: Move): string {
     throw new Error(`No piece at source square: ${move.from}`);
   }
 
+  let san: string;
+
   // Handle castling (simplified - would need more logic for actual castling detection)
   if (piece.type === "king") {
     const fileDelta = move.to.charCodeAt(0) - move.from.charCodeAt(0);
     if (Math.abs(fileDelta) === 2) {
-      return fileDelta > 0 ? "O-O" : "O-O-O";
+      san = fileDelta > 0 ? "O-O" : "O-O-O";
+      const suffix = getCheckOrCheckmateSuffix(boardState, move, piece.color);
+      return san + suffix;
     }
   }
 
-  // Handle pawn moves
-  if (piece.type === "pawn") {
-    return formatPawnMove(boardState, move, piece);
-  }
+  // Handle pawn moves vs other pieces
+  san =
+    piece.type === "pawn"
+      ? formatPawnMove(boardState, move, piece)
+      : formatPieceMove(boardState, move, piece);
 
-  // Handle piece moves
-  return formatPieceMove(boardState, move, piece);
+  const suffix = getCheckOrCheckmateSuffix(boardState, move, piece.color);
+  return san + suffix;
+}
+
+/**
+ * Checks if the opponent king is in check after a move.
+ * This is a helper function to determine if we should append '+' to SAN notation.
+ */
+function isKingInCheckAfterMove(boardState: BoardState, movedColor: Color): boolean {
+  const opponentColor: Color = movedColor === "white" ? "black" : "white";
+  return isKingInCheck(boardState, opponentColor);
+}
+
+/**
+ * Computes the suffix for SAN notation indicating check ('+') or checkmate ('#').
+ * If the move is not legal according to the engine (e.g., in synthetic test positions),
+ * this function will fall back to returning an empty suffix.
+ */
+function getCheckOrCheckmateSuffix(boardState: BoardState, move: Move, movedColor: Color): string {
+  try {
+    const newBoardState = applyMove(boardState, move);
+    const gameResult = evaluateGameResult(newBoardState);
+    if (gameResult.type === "checkmate") {
+      return "#";
+    }
+    if (isKingInCheckAfterMove(newBoardState, movedColor)) {
+      return "+";
+    }
+    return "";
+  } catch {
+    // If the move is not legal for the given synthetic board state,
+    // we still return a best-effort SAN string without check indicators.
+    return "";
+  }
 }
 
 /**

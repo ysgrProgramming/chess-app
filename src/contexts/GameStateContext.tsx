@@ -20,8 +20,8 @@ import {
   clearGameStateFromSession,
   validateGameState
 } from "../lib/gameState";
-import { createInitialBoardState, applyMove } from "../lib/chessEngine";
-import type { Move, BoardState, Color } from "../lib/types";
+import { createInitialBoardState, applyMove, evaluateGameResult } from "../lib/chessEngine";
+import type { Move, BoardState, Color, GameResult } from "../lib/types";
 
 /**
  * Context value type for game state.
@@ -30,6 +30,8 @@ interface GameStateContextValue {
   readonly state: GameState;
   readonly dispatch: React.Dispatch<GameAction>;
   readonly currentBoardState: BoardState;
+  readonly gameResult: GameResult;
+  readonly isGameOver: boolean;
   readonly handleMove: (move: Move) => void;
   readonly handleUndo: () => void;
   readonly handleReset: () => void;
@@ -97,11 +99,30 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
   }, [state.moveHistory, state.currentMoveIndex, state.isPreviewing]);
 
   /**
+   * Evaluates the current game result (ongoing, checkmate, or stalemate).
+   * Game over is only considered in the canonical position (not while previewing).
+   */
+  const gameResult = useMemo((): GameResult => {
+    if (state.isPreviewing) {
+      return { type: "ongoing" };
+    }
+    return evaluateGameResult(currentBoardState);
+  }, [currentBoardState, state.isPreviewing]);
+
+  const isGameOver = gameResult.type !== "ongoing";
+
+  /**
    * Handles a new move, implementing linear history (overwrites future moves if any).
    */
-  const handleMove = useCallback((move: Move) => {
-    dispatch({ type: "MOVE", move });
-  }, []);
+  const handleMove = useCallback(
+    (move: Move) => {
+      if (isGameOver) {
+        return;
+      }
+      dispatch({ type: "MOVE", move });
+    },
+    [isGameOver, dispatch]
+  );
 
   /**
    * Handles undo: steps back one move.
@@ -151,6 +172,8 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     state,
     dispatch,
     currentBoardState,
+    gameResult,
+    isGameOver,
     handleMove,
     handleUndo,
     handleReset,
