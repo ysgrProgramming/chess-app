@@ -1,13 +1,34 @@
 import React from "react";
-import { describe, expect, it, test } from "vitest";
+import { describe, expect, it, test, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../src/App";
+import { GameStateProvider } from "../src/contexts/GameStateContext";
+
+/**
+ * Helper function to render App with GameStateProvider.
+ */
+function renderApp(): void {
+  render(
+    <GameStateProvider>
+      <App />
+    </GameStateProvider>
+  );
+}
+
+/**
+ * Clears sessionStorage before each test to ensure isolation.
+ */
+beforeEach(() => {
+  if (typeof window !== "undefined" && window.sessionStorage) {
+    window.sessionStorage.clear();
+  }
+});
 
 describe("App", () => {
   test("renders application title and chessboard", () => {
-    render(<App />);
+    renderApp();
 
     expect(screen.getByRole("heading", { name: "Chess Practice App" })).toBeInTheDocument();
 
@@ -17,20 +38,20 @@ describe("App", () => {
 
   describe("Undo functionality", () => {
     it("should render undo button", () => {
-      render(<App />);
+      renderApp();
       const undoButton = screen.getByRole("button", { name: /undo/i });
       expect(undoButton).toBeInTheDocument();
     });
 
     it("should be disabled when there are no moves", () => {
-      render(<App />);
+      renderApp();
       const undoButton = screen.getByRole("button", { name: /undo/i });
       expect(undoButton).toBeDisabled();
     });
 
     it("should undo exactly one move and update board and kifu", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Make a move: e2 -> e4
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -58,7 +79,7 @@ describe("App", () => {
 
     it("should undo multiple moves one at a time", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Make two moves: e2->e4, e7->e5
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -106,7 +127,7 @@ describe("App", () => {
   describe("Jump to move functionality", () => {
     it("should allow clicking a move in kifu to jump to that position", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Make three moves: e2->e4, e7->e5, g1->f3
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -150,7 +171,7 @@ describe("App", () => {
 
     it("should update current move pointer when jumping to a move", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Make two moves: e2->e4, e7->e5
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -197,14 +218,14 @@ describe("App", () => {
 
   describe("Reset/New Game functionality", () => {
     it("should render reset button", () => {
-      render(<App />);
+      renderApp();
       const resetButton = screen.getByRole("button", { name: /reset|new game/i });
       expect(resetButton).toBeInTheDocument();
     });
 
     it("should reset to initial position and clear kifu", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Make a move
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -234,7 +255,7 @@ describe("App", () => {
 
     it("should reset from arbitrary state", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Make multiple moves
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -273,7 +294,7 @@ describe("App", () => {
 
   describe("Local two-player game flow (Issue #8)", () => {
     it("should display turn indicator at all times", () => {
-      render(<App />);
+      renderApp();
       // Initially white's turn
       const turnIndicator = screen.getByText(/white/i);
       expect(turnIndicator).toBeInTheDocument();
@@ -282,7 +303,7 @@ describe("App", () => {
 
     it("should allow two players to alternate moves on the same device", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Player 1 (White) makes first move: e2 -> e4
       const e2Square = screen.getByLabelText(/square e2/i);
@@ -329,7 +350,7 @@ describe("App", () => {
 
     it("should prevent players from moving opponent pieces", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // White's turn - try to move black piece (should fail)
       const e7Square = screen.getByLabelText(/square e7/i);
@@ -362,7 +383,7 @@ describe("App", () => {
 
     it("should update turn indicator after each move", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Initially White's turn
       const initialTurnIndicator = screen.getByText(/white/i);
@@ -395,7 +416,7 @@ describe("App", () => {
     });
 
     it("should not display authentication or user account UI", () => {
-      render(<App />);
+      renderApp();
 
       // Check that no authentication-related elements exist
       expect(
@@ -411,7 +432,7 @@ describe("App", () => {
 
     it("should support full game flow: start, play moves, undo, reset, continue play", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      renderApp();
 
       // Start game - make initial moves
       const e2Square = screen.getByLabelText(/square e2/i);

@@ -43,6 +43,30 @@ Your goal is to strictly follow TDD, verify code locally, and submit a Pull Requ
   - trivial refactors strictly needed to keep the code readable.
 - Never edit project-wide rules (e.g. `.cursor/rules/*.mdc`, CI config, security policies).
 
+### 6. Automatic Escalation (When Blocked)
+To avoid infinite loops, the Engineer must detect when progress is impossible.
+
+**Definition of Blocked:**
+- The same test fails **MAX_RETRY (5)** times consecutively.
+- No new approach is being found.
+
+**Behavior When Blocked:**
+1. Post a comment to the Issue using `gh issue comment` including:
+   - The failing test name(s)
+   - Attempts made and why they failed
+   - Hypothesized root cause
+   - Proposed alternative approaches
+2. **Do NOT create a PR.**
+3. Terminate with the following action block:
+
+::: action 🛑 User Action Required
+**Status:** Engineer Blocked (MAX_RETRY reached)
+**Next Step:** Open a **NEW CHAT** and call the Manager.
+**Next Prompt:**
+> @ai-manager.mdc Engineer is blocked on Issue #<issue_number>. Please analyze the failure details and advise.
+:::
+
+
 ## Workflow
 
 ### Step 1: Initialization
@@ -73,5 +97,3 @@ Upon completion (PR created), you must strictly output the following block to no
 **Next Prompt:**
 > @ai-manager.mdc PR #<pr_number> has been submitted. Please review it against the requirements.
 :::
-
-- Reference the Issue in the PR body (e.g. `Closes #<issue_number>`).
