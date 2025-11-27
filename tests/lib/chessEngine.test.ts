@@ -272,17 +272,19 @@ describe("Chess Engine", () => {
         ]),
         activeColor: "white"
       };
+      // Verify initial state: black pawn is on d2
+      expect(boardState.squares.get("d2")).toEqual({ color: "black", type: "pawn" });
       const move: Move = { from: "b1", to: "d2" };
       const newBoardState = applyMove(boardState, move);
 
+      // Verify capturing piece moved to destination
       expect(newBoardState.squares.get("d2")).toEqual({ color: "white", type: "knight" });
+      // Verify capturing piece removed from source
       expect(newBoardState.squares.get("b1")).toBeUndefined();
-      expect(newBoardState.squares.has("d2")).toBe(true);
-      // Verify captured piece is removed
-      const capturedPiece = Array.from(newBoardState.squares.values()).find(
-        (p) => p.color === "black" && p.type === "pawn"
-      );
-      expect(capturedPiece).toBeUndefined();
+      // Verify captured piece is removed (destination should have capturing piece, not captured piece)
+      const capturedPieceOnD2 = newBoardState.squares.get("d2");
+      expect(capturedPieceOnD2).not.toEqual({ color: "black", type: "pawn" });
+      expect(capturedPieceOnD2).toEqual({ color: "white", type: "knight" });
     });
 
     it("should handle bishop capture move correctly", () => {
@@ -297,13 +299,19 @@ describe("Chess Engine", () => {
         ]),
         activeColor: "white"
       };
+      // Verify initial state: black pawn is on g5
+      expect(boardState.squares.get("g5")).toEqual({ color: "black", type: "pawn" });
       const move: Move = { from: "c1", to: "g5" };
       const newBoardState = applyMove(boardState, move);
 
+      // Verify capturing piece moved to destination
       expect(newBoardState.squares.get("g5")).toEqual({ color: "white", type: "bishop" });
+      // Verify capturing piece removed from source
       expect(newBoardState.squares.get("c1")).toBeUndefined();
       // Verify captured piece is removed
-      expect(newBoardState.squares.has("g5")).toBe(true);
+      const capturedPieceOnG5 = newBoardState.squares.get("g5");
+      expect(capturedPieceOnG5).not.toEqual({ color: "black", type: "pawn" });
+      expect(capturedPieceOnG5).toEqual({ color: "white", type: "bishop" });
     });
 
     it("should handle rook capture move correctly", () => {
@@ -318,13 +326,19 @@ describe("Chess Engine", () => {
         ]),
         activeColor: "white"
       };
+      // Verify initial state: black pawn is on a7
+      expect(boardState.squares.get("a7")).toEqual({ color: "black", type: "pawn" });
       const move: Move = { from: "a1", to: "a7" };
       const newBoardState = applyMove(boardState, move);
 
+      // Verify capturing piece moved to destination
       expect(newBoardState.squares.get("a7")).toEqual({ color: "white", type: "rook" });
+      // Verify capturing piece removed from source
       expect(newBoardState.squares.get("a1")).toBeUndefined();
       // Verify captured piece is removed
-      expect(newBoardState.squares.has("a7")).toBe(true);
+      const capturedPieceOnA7 = newBoardState.squares.get("a7");
+      expect(capturedPieceOnA7).not.toEqual({ color: "black", type: "pawn" });
+      expect(capturedPieceOnA7).toEqual({ color: "white", type: "rook" });
     });
 
     it("should handle queen capture move correctly", () => {
@@ -339,13 +353,19 @@ describe("Chess Engine", () => {
         ]),
         activeColor: "white"
       };
+      // Verify initial state: black pawn is on d7
+      expect(boardState.squares.get("d7")).toEqual({ color: "black", type: "pawn" });
       const move: Move = { from: "d1", to: "d7" };
       const newBoardState = applyMove(boardState, move);
 
+      // Verify capturing piece moved to destination
       expect(newBoardState.squares.get("d7")).toEqual({ color: "white", type: "queen" });
+      // Verify capturing piece removed from source
       expect(newBoardState.squares.get("d1")).toBeUndefined();
       // Verify captured piece is removed
-      expect(newBoardState.squares.has("d7")).toBe(true);
+      const capturedPieceOnD7 = newBoardState.squares.get("d7");
+      expect(capturedPieceOnD7).not.toEqual({ color: "black", type: "pawn" });
+      expect(capturedPieceOnD7).toEqual({ color: "white", type: "queen" });
     });
 
     it("should handle king capture move correctly", () => {
@@ -359,13 +379,19 @@ describe("Chess Engine", () => {
         ]),
         activeColor: "white"
       };
+      // Verify initial state: black pawn is on e2
+      expect(boardState.squares.get("e2")).toEqual({ color: "black", type: "pawn" });
       const move: Move = { from: "e1", to: "e2" };
       const newBoardState = applyMove(boardState, move);
 
+      // Verify capturing piece moved to destination
       expect(newBoardState.squares.get("e2")).toEqual({ color: "white", type: "king" });
+      // Verify capturing piece removed from source
       expect(newBoardState.squares.get("e1")).toBeUndefined();
       // Verify captured piece is removed
-      expect(newBoardState.squares.has("e2")).toBe(true);
+      const capturedPieceOnE2 = newBoardState.squares.get("e2");
+      expect(capturedPieceOnE2).not.toEqual({ color: "black", type: "pawn" });
+      expect(capturedPieceOnE2).toEqual({ color: "white", type: "king" });
     });
   });
 
