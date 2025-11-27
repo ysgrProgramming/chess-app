@@ -1,4 +1,258 @@
-# Project Design: Cursor × GitHub CLI "Self-Validating" AI Development Ecosystem
+# Chess Practice App
+
+A browser-based chess practice web application that allows users to play local two-player games and review move sequences (kifu) on an interactive board. Built with TypeScript and React.
+
+## Table of Contents
+
+- [User Guide](#user-guide)
+- [Developer Guide](#developer-guide)
+- [Development Ecosystem](#development-ecosystem)
+
+---
+
+# User Guide
+
+## Getting Started
+
+### Starting a Local Game
+
+1. **Install dependencies** (if not already done):
+   ```bash
+   npm install
+   ```
+
+2. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+
+3. **Open the application** in your browser (typically `http://localhost:5173`).
+
+4. The game starts with White's turn. The turn indicator at the top of the board shows the current active player.
+
+### Making Moves
+
+- **Click/Tap**: Click or tap a piece to select it, then click/tap the destination square. Legal destination squares are highlighted automatically.
+- **Drag and Drop**: Drag a piece to its destination square and drop it.
+- **Mobile**: On touch devices, tap to select, then tap the destination. Horizontal drag gestures are also supported.
+
+Only legal moves are accepted. If you attempt an illegal move, the piece will return to its original position or the move will be cancelled.
+
+### Undo and Reset
+
+- **Undo**: Click the "Undo" button to step back exactly one move. The board and move list update accordingly.
+- **Previous move / Next move**: Use these buttons to navigate through the move history step by step.
+- **New Game**: Click "New Game" to reset the board to the initial position and clear the move list.
+
+### Replaying Moves (Kifu Review)
+
+- **Jump to any move**: Click any move in the Move List sidebar to jump to that position in the game.
+- **Preview mode**: When viewing an earlier position, you can preview future moves. If you make a new move from a preview position, all moves after that point are discarded, and play continues from the selected position.
+- **Navigation**: Use "Previous move" and "Next move" buttons to step through the game history.
+
+### Copying and Downloading the Kifu
+
+- **Copy moves**: Click the "Copy moves" button in the Move List sidebar to copy all moves to your clipboard in text format (e.g., "1. e4 e5 2. Nf3 Nc6").
+- **Download moves**: Click the "Download moves" button to download the move list as a text file (`.txt`). The file includes move numbers, SAN notation, and game result if applicable.
+
+Note: The application uses Standard Algebraic Notation (SAN) for move representation, including check (`+`) and checkmate (`#`) indicators.
+
+### Game End Conditions
+
+The game ends automatically when:
+- **Checkmate**: The opponent's king is in checkmate.
+- **Stalemate**: The active player has no legal moves and is not in check.
+- **Draw by threefold repetition**: The same board position occurs three times.
+- **Draw by 50-move rule**: 50 moves have been made without a pawn move or capture.
+
+You can also:
+- **Offer draw**: Click "Offer draw" to propose a draw. The opponent can accept or decline.
+- **Resign**: Click "Resign" to forfeit the game.
+
+### Supported Browsers
+
+The application is designed to work on modern browsers that support:
+- ES2020+ JavaScript features
+- CSS Grid and Flexbox
+- Drag and Drop API
+- Touch Events API (for mobile support)
+
+**Recommended browsers:**
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Mobile browsers (iOS Safari, Chrome Mobile)
+
+**Assumptions:**
+- JavaScript is enabled
+- Local storage (sessionStorage) is available for game state persistence within a session
+- The viewport is at least 320px wide (mobile-friendly)
+
+---
+
+# Developer Guide
+
+## Architecture Overview
+
+The application is built with React and TypeScript, following a component-based architecture with centralized state management.
+
+### High-Level Components
+
+```
+App
+├── ChessBoard (interactive board with drag-and-drop)
+│   └── PromotionDialog (pawn promotion selection)
+├── MoveList (kifu sidebar with move history)
+└── GameStateContext (centralized game state management)
+```
+
+### Core Modules
+
+#### 1. **Chess Engine** (`src/lib/chessEngine.ts`)
+
+The rules engine handles all chess logic:
+- **Board state management**: Represents the 64-square board with pieces, castling rights, en passant targets, and move counters.
+- **Move validation**: Validates moves according to chess rules (piece movement, check detection, castling, en passant).
+- **Game result evaluation**: Detects checkmate, stalemate, threefold repetition, and 50-move rule draws.
+- **Legal move generation**: Computes all legal moves for a given piece or position.
+
+**Key functions:**
+- `createInitialBoardState()`: Creates the standard starting position.
+- `validateMove()`: Validates if a move is legal.
+- `applyMove()`: Applies a move to the board state.
+- `getLegalMoves()`: Returns all legal destination squares for a piece.
+- `evaluateGameResult()`: Determines the current game result.
+
+#### 2. **Game State Management** (`src/lib/gameState.ts` & `src/contexts/GameStateContext.tsx`)
+
+Manages the overall game state:
+- **Move history**: Stores all moves in the game.
+- **Current position pointer**: Tracks which move is currently displayed (for replay/preview).
+- **Session persistence**: Saves game state to `sessionStorage` for persistence within a browser session.
+- **State reducer**: Uses React's `useReducer` for predictable state updates.
+
+**Key concepts:**
+- Linear history: Making a move from a preview position discards future moves.
+- Preview mode: When viewing an earlier position, `isPreviewing` is true, and the game is not considered "over" until returning to the canonical position.
+
+#### 3. **Notation** (`src/lib/notation.ts`)
+
+Converts moves to Standard Algebraic Notation (SAN):
+- **Move to SAN**: Converts a `Move` object to SAN string (e.g., "e4", "Nf3", "O-O").
+- **Disambiguation**: Handles cases where multiple pieces can move to the same square (e.g., "Nbd2" vs "Nfd2").
+- **Check/Checkmate indicators**: Appends `+` for check and `#` for checkmate.
+
+#### 4. **Kifu Export** (`src/lib/kifuExport.ts`)
+
+Exports move history in various formats:
+- **Text format**: Human-readable move list (e.g., "1. e4 e5 2. Nf3 Nc6").
+- **PGN format**: Portable Game Notation with headers and moves.
+
+### Data Flow
+
+```
+User Interaction (click/drag)
+    ↓
+ChessBoard Component
+    ↓
+handleMove callback
+    ↓
+GameStateContext.handleMove()
+    ↓
+gameReducer (updates state)
+    ↓
+Board state recomputed from move history
+    ↓
+ChessBoard re-renders with new position
+    ↓
+MoveList updates with new move
+```
+
+### Adding New Features
+
+To add new features without breaking existing functionality:
+
+1. **Follow TDD**: Write tests first, then implement.
+2. **Extend types**: Add new fields to `GameState` or `BoardState` in `src/lib/types.ts` if needed.
+3. **Update reducer**: Add new action types to `GameAction` and handle them in `gameReducer`.
+4. **Maintain backward compatibility**: When modifying state structure, ensure old session data can be migrated or ignored gracefully.
+5. **Test edge cases**: Consider preview mode, undo/redo, and game end conditions.
+
+**Example: Adding a new game end condition**
+
+```typescript
+// 1. Add result type to GameResult union in types.ts
+type GameResult = 
+  | { type: "ongoing" }
+  | { type: "checkmate"; winner: Color }
+  | { type: "stalemate" }
+  | { type: "draw"; reason: "threefold repetition" | "50-move rule" | "agreement" }
+  | { type: "resignation"; winner: Color }
+  | { type: "new-condition"; /* ... */ }; // Add new condition
+
+// 2. Update evaluateGameResult() in chessEngine.ts
+export function evaluateGameResult(...): GameResult {
+  // ... existing checks ...
+  if (/* new condition detected */) {
+    return { type: "new-condition", /* ... */ };
+  }
+  // ...
+}
+
+// 3. Update UI components to handle new result type
+// (App.tsx, MoveList.tsx, etc.)
+```
+
+### Component Integration Example
+
+To integrate the chess game component into a host page:
+
+```tsx
+import React from "react";
+import { GameStateProvider } from "./contexts/GameStateContext";
+import { App } from "./App";
+
+function MyHostPage() {
+  return (
+    <GameStateProvider>
+      <App />
+    </GameStateProvider>
+  );
+}
+
+export default MyHostPage;
+```
+
+The `GameStateProvider` must wrap the `App` component (or any component that uses `useGameState()`). The `App` component includes the board, move list, and all controls.
+
+For a minimal integration with just the board:
+
+```tsx
+import React, { useState } from "react";
+import { ChessBoard } from "./components/ChessBoard";
+import { createInitialBoardState, applyMove, validateMove } from "./lib/chessEngine";
+import type { BoardState, Move } from "./lib/types";
+
+function MinimalChessBoard() {
+  const [boardState, setBoardState] = useState(createInitialBoardState());
+
+  const handleMove = (move: Move) => {
+    const validation = validateMove(boardState, move);
+    if (validation.valid) {
+      const newState = applyMove(boardState, move);
+      setBoardState(newState);
+    }
+  };
+
+  return <ChessBoard boardState={boardState} onMove={handleMove} />;
+}
+```
+
+---
+
+# Development Ecosystem
+
+## Project Design: Cursor × GitHub CLI "Self-Validating" AI Development Ecosystem
 
 ## 1\. 概要 (Executive Summary)
 
