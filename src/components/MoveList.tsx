@@ -197,9 +197,7 @@ export const MoveList: React.FC<MoveListProps> = ({
         })}
       </ol>
       {effectiveGameResult.type !== "ongoing" && (
-        <div className="game-result-text">
-          {formatGameResult(effectiveGameResult)}
-        </div>
+        <div className="game-result-text">{formatGameResult(effectiveGameResult)}</div>
       )}
     </div>
   );

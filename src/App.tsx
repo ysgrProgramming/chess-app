@@ -10,7 +10,6 @@ export const App: React.FC = () => {
     gameResult,
     isGameOver,
     drawOfferBy,
-    activeColor,
     handleMove,
     handleUndo,
     handleReset,
@@ -90,12 +89,7 @@ export const App: React.FC = () => {
             >
               Offer draw
             </button>
-            <button
-              type="button"
-              onClick={handleResign}
-              disabled={isGameOver}
-              aria-label="Resign"
-            >
+            <button type="button" onClick={handleResign} disabled={isGameOver} aria-label="Resign">
               Resign
             </button>
           </div>
