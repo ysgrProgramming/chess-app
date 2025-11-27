@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, expect, it, test, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, test, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../src/App";
@@ -24,6 +24,10 @@ beforeEach(() => {
   if (typeof window !== "undefined" && window.sessionStorage) {
     window.sessionStorage.clear();
   }
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe("App", () => {
@@ -499,6 +503,271 @@ describe("App", () => {
         const turnIndicator = screen.getByText(/black/i);
         expect(turnIndicator).toBeInTheDocument();
         expect(turnIndicator.textContent).toMatch(/black.*turn/i);
+      });
+    });
+  });
+
+  describe("Kifu review / replay controls (Issue #10)", () => {
+    it("should render Previous move and Next move buttons", () => {
+      renderApp();
+      const previousButton = screen.getByRole("button", { name: /previous move/i });
+      const nextButton = screen.getByRole("button", { name: /next move/i });
+      expect(previousButton).toBeInTheDocument();
+      expect(nextButton).toBeInTheDocument();
+    });
+
+    it("should disable Previous move button at start of game", () => {
+      renderApp();
+      const previousButton = screen.getByRole("button", { name: /previous move/i });
+      expect(previousButton).toBeDisabled();
+    });
+
+    it("should disable Next move button at end of game", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make a move to have some history
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      // Next move button should be disabled at end
+      const nextButton = screen.getByRole("button", { name: /next move/i });
+      expect(nextButton).toBeDisabled();
+    });
+
+    it("should step backward through moves with Previous move button", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make two moves: e2->e4, e7->e5
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+      });
+
+      // Click Previous move button
+      const previousButton = screen.getByRole("button", { name: /previous move/i });
+      await user.click(previousButton);
+
+      await waitFor(() => {
+        // Board should show position after first move (e4)
+        expect(e4Square).toHaveTextContent("♙");
+        expect(e5Square).not.toHaveTextContent("♟");
+        // First move should be highlighted in kifu
+        const e4Move = screen.getByText(/e4/);
+        expect(e4Move).toHaveClass("current-move");
+      });
+    });
+
+    it("should step forward through moves with Next move button", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make two moves: e2->e4, e7->e5
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+      });
+
+      // Jump back to first move
+      const e4Move = screen.getByText(/e4/);
+      await user.click(e4Move);
+
+      await waitFor(() => {
+        expect(e5Square).not.toHaveTextContent("♟");
+      });
+
+      // Click Next move button
+      const nextButton = screen.getByRole("button", { name: /next move/i });
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        // Board should show position after second move (e5)
+        expect(e4Square).toHaveTextContent("♙");
+        expect(e5Square).toHaveTextContent("♟");
+        // Second move should be highlighted in kifu
+        const e5Move = screen.getByText(/e5/);
+        expect(e5Move).toHaveClass("current-move");
+      });
+    });
+
+    it("should correctly handle boundary conditions at start of game", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make a move
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      const previousButton = screen.getByRole("button", { name: /previous move/i });
+      const nextButton = screen.getByRole("button", { name: /next move/i });
+
+      // Step back to initial position
+      await user.click(previousButton);
+
+      await waitFor(() => {
+        expect(e4Square).not.toHaveTextContent("♙");
+      });
+
+      expect(previousButton).toBeDisabled();
+      expect(nextButton).not.toBeDisabled();
+
+      // Clicking Previous again should not change state
+      await user.click(previousButton);
+
+      await waitFor(() => {
+        expect(e4Square).not.toHaveTextContent("♙");
+      });
+    });
+
+    it("should correctly handle boundary conditions at end of game", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make a move
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      // Next move button should be disabled at end
+      const nextButton = screen.getByRole("button", { name: /next move/i });
+      expect(nextButton).toBeDisabled();
+
+      // Clicking it should not change state
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+    });
+
+    it("should sync board state and kifu highlight when stepping through moves", async () => {
+      const user = userEvent.setup();
+      renderApp();
+
+      // Make three moves: e2->e4, e7->e5, g1->f3
+      const e2Square = screen.getByLabelText(/square e2/i);
+      const e4Square = screen.getByLabelText(/square e4/i);
+      await user.click(e2Square);
+      await user.click(e4Square);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+      });
+
+      const e7Square = screen.getByLabelText(/square e7/i);
+      const e5Square = screen.getByLabelText(/square e5/i);
+      await user.click(e7Square);
+      await user.click(e5Square);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+      });
+
+      const g1Square = screen.getByLabelText(/square g1/i);
+      const f3Square = screen.getByLabelText(/square f3/i);
+      await user.click(g1Square);
+      await user.click(f3Square);
+
+      await waitFor(() => {
+        expect(f3Square).toHaveTextContent("♞");
+      });
+
+      const previousButton = screen.getByRole("button", { name: /previous move/i });
+
+      // Step back through the entire kifu to reach the initial board
+      await user.click(previousButton);
+      await user.click(previousButton);
+      await user.click(previousButton);
+
+      await waitFor(() => {
+        expect(e4Square).not.toHaveTextContent("♙");
+        expect(e5Square).not.toHaveTextContent("♟");
+        expect(f3Square).not.toHaveTextContent("♞");
+      });
+
+      // Even while previewing the start, the full move list should remain visible
+      const e5MoveElementPreview = screen.getByText(/e5/);
+      expect(e5MoveElementPreview).toBeInTheDocument();
+      expect(e5MoveElementPreview).not.toHaveClass("current-move");
+
+      // Step forward through moves
+      const nextButton = screen.getByRole("button", { name: /next move/i });
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(e4Square).toHaveTextContent("♙");
+        const e4MoveElement = screen.getByText(/e4/);
+        expect(e4MoveElement).toHaveClass("current-move");
+      });
+
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(e5Square).toHaveTextContent("♟");
+        const e5MoveElement = screen.getByText(/e5/);
+        expect(e5MoveElement).toHaveClass("current-move");
+      });
+
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(f3Square).toHaveTextContent("♞");
+        const f3MoveElement = screen.getByText(/Nf3/);
+        expect(f3MoveElement).toHaveClass("current-move");
+      });
+
+      // Step backward
+      await user.click(previousButton);
+
+      await waitFor(() => {
+        expect(f3Square).not.toHaveTextContent("♞");
+        expect(e5Square).toHaveTextContent("♟");
+        const e5MoveElement = screen.getByText(/e5/);
+        expect(e5MoveElement).toHaveClass("current-move");
       });
     });
   });

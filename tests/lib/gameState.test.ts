@@ -144,6 +144,116 @@ describe("gameState", () => {
       });
     });
 
+    describe("NEXT_MOVE action", () => {
+      it("should increment currentMoveIndex when not at end", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4" },
+            { from: "e7", to: "e5" },
+            { from: "g1", to: "f3" }
+          ],
+          currentMoveIndex: 0,
+          isPreviewing: true
+        };
+        const action: GameAction = { type: "NEXT_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.currentMoveIndex).toBe(1);
+        expect(newState.moveHistory).toEqual(initialState.moveHistory);
+        expect(newState.isPreviewing).toBe(true); // Still not at end
+      });
+
+      it("should set isPreviewing to false when reaching end", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4" },
+            { from: "e7", to: "e5" }
+          ],
+          currentMoveIndex: 0,
+          isPreviewing: true
+        };
+        const action: GameAction = { type: "NEXT_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.currentMoveIndex).toBe(1);
+        expect(newState.isPreviewing).toBe(false); // At end
+      });
+
+      it("should not change state when already at end", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4" },
+            { from: "e7", to: "e5" }
+          ],
+          currentMoveIndex: 1,
+          isPreviewing: false
+        };
+        const action: GameAction = { type: "NEXT_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState).toEqual(initialState);
+      });
+
+      it("should not change state when currentMoveIndex is -1 and history is empty", () => {
+        const initialState = createInitialGameState();
+        const action: GameAction = { type: "NEXT_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState).toEqual(initialState);
+      });
+    });
+
+    describe("PREVIOUS_MOVE action", () => {
+      it("should decrement currentMoveIndex when possible", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4" },
+            { from: "e7", to: "e5" }
+          ],
+          currentMoveIndex: 1,
+          isPreviewing: false
+        };
+        const action: GameAction = { type: "PREVIOUS_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.currentMoveIndex).toBe(0);
+        expect(newState.moveHistory).toEqual(initialState.moveHistory);
+        expect(newState.isPreviewing).toBe(true);
+      });
+
+      it("should allow stepping back to initial position (-1)", () => {
+        const initialState: GameState = {
+          moveHistory: [{ from: "e2", to: "e4" }],
+          currentMoveIndex: 0,
+          isPreviewing: false
+        };
+        const action: GameAction = { type: "PREVIOUS_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.currentMoveIndex).toBe(-1);
+        expect(newState.isPreviewing).toBe(true);
+      });
+
+      it("should not change state when already at start", () => {
+        const initialState: GameState = {
+          moveHistory: [{ from: "e2", to: "e4" }],
+          currentMoveIndex: -1,
+          isPreviewing: true
+        };
+        const action: GameAction = { type: "PREVIOUS_MOVE" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState).toEqual(initialState);
+      });
+    });
+
     describe("JUMP_TO_MOVE action", () => {
       it("should jump to valid move index", () => {
         const initialState: GameState = {

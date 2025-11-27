@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChessBoard } from "../../src/components/ChessBoard";
@@ -17,6 +17,10 @@ vi.mock("../../src/lib/chessEngine", async () => {
     applyMove: vi.fn(actual.applyMove),
     getLegalMoves: vi.fn(actual.getLegalMoves)
   };
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe("ChessBoard", () => {
