@@ -14,6 +14,12 @@ A browser-based chess practice web application that allows users to play local t
 
 ## Getting Started
 
+### Live Application
+
+The application is available online at: **[https://ysgrProgramming.github.io/chess-app/](https://ysgrProgramming.github.io/chess-app/)**
+
+The application is automatically deployed to GitHub Pages whenever code is merged to the `main` branch. You can check the deployment status in the [GitHub Actions workflow runs](https://github.com/ysgrProgramming/chess-app/actions/workflows/deploy.yml).
+
 ### Starting a Local Game
 
 1. **Install dependencies** (if not already done):
@@ -247,6 +253,31 @@ function MinimalChessBoard() {
   return <ChessBoard boardState={boardState} onMove={handleMove} />;
 }
 ```
+
+### Deployment
+
+The application is automatically deployed to GitHub Pages whenever code is pushed to the `main` branch.
+
+**Deployment Process:**
+
+1. **Automatic Trigger**: The deployment workflow (`.github/workflows/deploy.yml`) runs automatically on every push to `main`
+2. **Quality Gates**: Before deployment, the workflow runs:
+   - Lint checks (`make lint`)
+   - Test suite (`make test`)
+   - Build process (`npm run build`)
+3. **Deployment**: If all checks pass, the built application is deployed to GitHub Pages
+4. **Live URL**: The application is available at [https://ysgrProgramming.github.io/chess-app/](https://ysgrProgramming.github.io/chess-app/)
+
+**Checking Deployment Status:**
+
+- View deployment workflow runs: [GitHub Actions - Deploy workflow](https://github.com/ysgrProgramming/chess-app/actions/workflows/deploy.yml)
+- The workflow shows the deployment status, including any failures
+- Note: Pull requests do not trigger deployment; only merges to `main` branch trigger automatic deployment
+
+**Repository Settings:**
+
+- GitHub Pages source must be set to "GitHub Actions" (not a branch)
+- The workflow requires `pages: write` and `id-token: write` permissions
 
 ---
 
