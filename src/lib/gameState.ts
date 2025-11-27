@@ -20,7 +20,9 @@ export type GameAction =
   | { type: "MOVE"; move: Move }
   | { type: "UNDO" }
   | { type: "RESET" }
-  | { type: "JUMP_TO_MOVE"; targetIndex: number };
+  | { type: "JUMP_TO_MOVE"; targetIndex: number }
+  | { type: "NEXT_MOVE" }
+  | { type: "PREVIOUS_MOVE" };
 
 /**
  * Validation result for game state.
@@ -80,6 +82,31 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         currentMoveIndex: -1,
         isPreviewing: false
       };
+    }
+    case "NEXT_MOVE": {
+      // Can only move forward if not at the end and history is not empty
+      if (state.currentMoveIndex < state.moveHistory.length - 1 && state.moveHistory.length > 0) {
+        const newIndex = state.currentMoveIndex + 1;
+        return {
+          ...state,
+          currentMoveIndex: newIndex,
+          isPreviewing: newIndex < state.moveHistory.length - 1
+        };
+      }
+      return state;
+    }
+    case "PREVIOUS_MOVE": {
+      if (state.currentMoveIndex >= 0) {
+        const newIndex = state.currentMoveIndex - 1;
+        return {
+          ...state,
+          currentMoveIndex: newIndex,
+          isPreviewing:
+            newIndex < state.moveHistory.length - 1 ||
+            (newIndex === -1 && state.moveHistory.length > 0)
+        };
+      }
+      return state;
     }
     case "JUMP_TO_MOVE": {
       const { targetIndex } = action;

@@ -11,7 +11,11 @@ export const App: React.FC = () => {
     handleUndo,
     handleReset,
     handleJumpToMove,
+    handlePreviousMove,
+    handleNextMove,
     canUndo,
+    canGoToPreviousMove,
+    canGoToNextMove,
     visibleMoves,
     state: { currentMoveIndex }
   } = useGameState();
@@ -29,6 +33,22 @@ export const App: React.FC = () => {
           <div className="app-board-controls">
             <button type="button" onClick={handleUndo} disabled={!canUndo} aria-label="Undo move">
               Undo
+            </button>
+            <button
+              type="button"
+              onClick={handlePreviousMove}
+              disabled={!canGoToPreviousMove}
+              aria-label="Previous move"
+            >
+              Previous move
+            </button>
+            <button
+              type="button"
+              onClick={handleNextMove}
+              disabled={!canGoToNextMove}
+              aria-label="Next move"
+            >
+              Next move
             </button>
             <button type="button" onClick={handleReset} aria-label="Reset game">
               New Game

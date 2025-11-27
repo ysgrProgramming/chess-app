@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // Mock the clipboard and download modules
@@ -20,6 +20,10 @@ import type { Move } from "../../src/lib/types";
 // Type the mocked functions
 const mockCopyTextToClipboard = vi.mocked(copyTextToClipboard);
 const mockDownloadTextFile = vi.mocked(downloadTextFile);
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("MoveList", () => {
   describe("Rendering", () => {

@@ -34,7 +34,11 @@ interface GameStateContextValue {
   readonly handleUndo: () => void;
   readonly handleReset: () => void;
   readonly handleJumpToMove: (targetIndex: number) => void;
+  readonly handlePreviousMove: () => void;
+  readonly handleNextMove: () => void;
   readonly canUndo: boolean;
+  readonly canGoToPreviousMove: boolean;
+  readonly canGoToNextMove: boolean;
   readonly visibleMoves: readonly Move[];
 }
 
@@ -121,8 +125,27 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     dispatch({ type: "JUMP_TO_MOVE", targetIndex });
   }, []);
 
+  /**
+   * Handles stepping backward one move in the kifu (previous move).
+   */
+  const handlePreviousMove = useCallback(() => {
+    dispatch({ type: "PREVIOUS_MOVE" });
+  }, []);
+
+  /**
+   * Handles stepping forward one move in the kifu (next move).
+   */
+  const handleNextMove = useCallback(() => {
+    dispatch({ type: "NEXT_MOVE" });
+  }, []);
+
   const canUndo = state.currentMoveIndex >= 0;
-  const visibleMoves = state.moveHistory.slice(0, state.currentMoveIndex + 1);
+  const canGoToPreviousMove = state.currentMoveIndex >= 0;
+  const canGoToNextMove =
+    state.currentMoveIndex < state.moveHistory.length - 1 && state.moveHistory.length > 0;
+  const visibleMoves = state.isPreviewing
+    ? state.moveHistory
+    : state.moveHistory.slice(0, state.currentMoveIndex + 1);
 
   const contextValue: GameStateContextValue = {
     state,
@@ -132,7 +155,11 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     handleUndo,
     handleReset,
     handleJumpToMove,
+    handlePreviousMove,
+    handleNextMove,
     canUndo,
+    canGoToPreviousMove,
+    canGoToNextMove,
     visibleMoves
   };
 
