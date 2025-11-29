@@ -7,6 +7,19 @@ import { createInitialBoardState, applyMove } from "./chessEngine";
 import type { Move, GameResult } from "./types";
 
 /**
+ * Escapes special characters in comments for export.
+ * Handles curly braces, quotes, and newlines.
+ */
+function escapeComment(comment: string): string {
+  return comment
+    .replace(/\\/g, "\\\\") // Escape backslashes first
+    .replace(/\{/g, "\\{") // Escape opening braces
+    .replace(/\}/g, "\\}") // Escape closing braces
+    .replace(/"/g, '\\"') // Escape quotes
+    .replace(/\n/g, "\\n"); // Escape newlines
+}
+
+/**
  * Formats game result for text export.
  */
 function formatGameResultForText(gameResult: GameResult): string {
@@ -62,10 +75,22 @@ export function movesToText(moves: readonly Move[], gameResult?: GameResult): st
   const movesText = movePairs
     .map((pair, index) => {
       const moveNumber = index + 1;
-      if (pair.black) {
-        return `${moveNumber}. ${pair.white} ${pair.black}`;
+      const whiteMove = moves[index * 2];
+      const blackMove = index * 2 + 1 < moves.length ? moves[index * 2 + 1] : undefined;
+
+      let movePairText = `${moveNumber}. ${pair.white}`;
+      if (whiteMove?.comment) {
+        movePairText += ` {${escapeComment(whiteMove.comment)}}`;
       }
-      return `${moveNumber}. ${pair.white}`;
+
+      if (pair.black) {
+        movePairText += ` ${pair.black}`;
+        if (blackMove?.comment) {
+          movePairText += ` {${escapeComment(blackMove.comment)}}`;
+        }
+      }
+
+      return movePairText;
     })
     .join(" ");
 

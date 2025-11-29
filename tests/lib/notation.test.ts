@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import { moveToSAN } from "../../src/lib/notation";
+import { moveToSAN, parseKifuText } from "../../src/lib/notation";
 import { createInitialBoardState, applyMove } from "../../src/lib/chessEngine";
 import type { BoardState, Move, CastlingRights } from "../../src/lib/types";
 
@@ -272,6 +272,87 @@ describe("moveToSAN", () => {
       const move: Move = { from: "d7", to: "e8", promotion: "queen" };
       const san = moveToSAN(boardState, move);
       expect(san).toBe("dxe8=Q+");
+    });
+  });
+});
+
+describe("parseKifuText", () => {
+  it("should parse moves without comments", () => {
+    const kifuText = "1. e4 e5 2. Nf3 Nc6";
+    const result = parseKifuText(kifuText);
+    expect(result.moves).toHaveLength(4);
+    expect(result.moves[0]).toEqual({ from: "e2", to: "e4" });
+    expect(result.moves[1]).toEqual({ from: "e7", to: "e5" });
+  });
+
+  it("should parse moves with comments", () => {
+    const kifuText = "1. e4 {King's pawn opening} e5 {Classical response}";
+    const result = parseKifuText(kifuText);
+    expect(result.moves).toHaveLength(2);
+    expect(result.moves[0]).toEqual({
+      from: "e2",
+      to: "e4",
+      comment: "King's pawn opening"
+    });
+    expect(result.moves[1]).toEqual({
+      from: "e7",
+      to: "e5",
+      comment: "Classical response"
+    });
+  });
+
+  it("should parse moves with partial comments", () => {
+    const kifuText = "1. e4 {Opening move} e5 2. Nf3 {Development}";
+    const result = parseKifuText(kifuText);
+    expect(result.moves).toHaveLength(3);
+    expect(result.moves[0].comment).toBe("Opening move");
+    expect(result.moves[1].comment).toBeUndefined();
+    expect(result.moves[2].comment).toBe("Development");
+  });
+
+  it("should handle comments with special characters", () => {
+    const kifuText = '1. e4 {Comment with "quotes" and {nested} braces}';
+    const result = parseKifuText(kifuText);
+    expect(result.moves[0].comment).toBeDefined();
+    // Special characters should be preserved or escaped appropriately
+  });
+
+  it("should handle multi-line comments", () => {
+    const kifuText = "1. e4 {Line 1\nLine 2}";
+    const result = parseKifuText(kifuText);
+    expect(result.moves[0].comment).toContain("Line 1");
+    expect(result.moves[0].comment).toContain("Line 2");
+  });
+
+  it("should handle empty comments gracefully", () => {
+    const kifuText = "1. e4 {} e5";
+    const result = parseKifuText(kifuText);
+    expect(result.moves[0].comment).toBeUndefined();
+    expect(result.moves[1].comment).toBeUndefined();
+  });
+
+  it("should parse PGN format with comments", () => {
+    const pgnText = `[Event "Test"]
+[Site "Local"]
+[Date "2024-01-01"]
+[Round "1"]
+[White "Player 1"]
+[Black "Player 2"]
+[Result "*"]
+
+1. e4 {Opening} e5 {Response}`;
+    const result = parseKifuText(pgnText);
+    expect(result.moves).toHaveLength(2);
+    expect(result.moves[0].comment).toBe("Opening");
+    expect(result.moves[1].comment).toBe("Response");
+  });
+
+  it("should maintain backward compatibility with comment-free kifu", () => {
+    const kifuText = "1. e4 e5 2. Nf3 Nc6 3. Bb5";
+    const result = parseKifuText(kifuText);
+    expect(result.moves).toHaveLength(5);
+    result.moves.forEach((move) => {
+      expect(move.comment).toBeUndefined();
     });
   });
 });

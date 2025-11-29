@@ -42,6 +42,10 @@ export interface Move {
   readonly from: Square;
   readonly to: Square;
   readonly promotion?: PieceType;
+  /**
+   * Optional comment for this move.
+   */
+  readonly comment?: string;
 }
 
 /**

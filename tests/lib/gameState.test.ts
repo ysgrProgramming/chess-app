@@ -472,4 +472,199 @@ describe("gameState", () => {
       expect(result.currentMoveIndex).toBeDefined();
     });
   });
+
+  describe("Move comments", () => {
+    describe("UPDATE_MOVE_COMMENT action", () => {
+      it("should add comment to a move", () => {
+        const initialState: GameState = {
+          moveHistory: [{ from: "e2", to: "e4" }],
+          currentMoveIndex: 0,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = {
+          type: "UPDATE_MOVE_COMMENT",
+          moveIndex: 0,
+          comment: "King's pawn opening"
+        };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.moveHistory[0]).toEqual({
+          from: "e2",
+          to: "e4",
+          comment: "King's pawn opening"
+        });
+      });
+
+      it("should update existing comment", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4", comment: "Old comment" },
+            { from: "e7", to: "e5" }
+          ],
+          currentMoveIndex: 1,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = {
+          type: "UPDATE_MOVE_COMMENT",
+          moveIndex: 0,
+          comment: "Updated comment"
+        };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.moveHistory[0]).toEqual({
+          from: "e2",
+          to: "e4",
+          comment: "Updated comment"
+        });
+        expect(newState.moveHistory[1]).toEqual({ from: "e7", to: "e5" });
+      });
+
+      it("should remove comment when set to empty string", () => {
+        const initialState: GameState = {
+          moveHistory: [{ from: "e2", to: "e4", comment: "Some comment" }],
+          currentMoveIndex: 0,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = {
+          type: "UPDATE_MOVE_COMMENT",
+          moveIndex: 0,
+          comment: ""
+        };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.moveHistory[0]).toEqual({ from: "e2", to: "e4" });
+        expect(newState.moveHistory[0].comment).toBeUndefined();
+      });
+
+      it("should not change state when moveIndex is out of bounds", () => {
+        const initialState: GameState = {
+          moveHistory: [{ from: "e2", to: "e4" }],
+          currentMoveIndex: 0,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = {
+          type: "UPDATE_MOVE_COMMENT",
+          moveIndex: 10,
+          comment: "Invalid comment"
+        };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState).toEqual(initialState);
+      });
+
+      it("should not change state when moveIndex is negative", () => {
+        const initialState: GameState = {
+          moveHistory: [{ from: "e2", to: "e4" }],
+          currentMoveIndex: 0,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = {
+          type: "UPDATE_MOVE_COMMENT",
+          moveIndex: -1,
+          comment: "Invalid comment"
+        };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState).toEqual(initialState);
+      });
+    });
+
+    describe("Comment persistence with undo/redo", () => {
+      it("should preserve comments when undoing moves", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4", comment: "Opening move" },
+            { from: "e7", to: "e5", comment: "Response" }
+          ],
+          currentMoveIndex: 1,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = { type: "UNDO" };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.moveHistory[0].comment).toBe("Opening move");
+        expect(newState.moveHistory[1].comment).toBe("Response");
+        expect(newState.currentMoveIndex).toBe(0);
+      });
+
+      it("should preserve comments when jumping to moves", () => {
+        const initialState: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4", comment: "First move" },
+            { from: "e7", to: "e5", comment: "Second move" },
+            { from: "g1", to: "f3", comment: "Third move" }
+          ],
+          currentMoveIndex: 2,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+        const action: GameAction = { type: "JUMP_TO_MOVE", targetIndex: 0 };
+
+        const newState = gameReducer(initialState, action);
+
+        expect(newState.moveHistory[0].comment).toBe("First move");
+        expect(newState.moveHistory[1].comment).toBe("Second move");
+        expect(newState.moveHistory[2].comment).toBe("Third move");
+      });
+    });
+
+    describe("Comment serialization", () => {
+      it("should serialize and deserialize moves with comments", () => {
+        const state: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4", comment: "King's pawn" },
+            { from: "e7", to: "e5", comment: "Classical response" }
+          ],
+          currentMoveIndex: 1,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+
+        const serialized = serializeGameState(state);
+        const deserialized = deserializeGameState(serialized);
+
+        expect(deserialized.moveHistory[0].comment).toBe("King's pawn");
+        expect(deserialized.moveHistory[1].comment).toBe("Classical response");
+      });
+
+      it("should handle moves without comments in serialization", () => {
+        const state: GameState = {
+          moveHistory: [
+            { from: "e2", to: "e4" },
+            { from: "e7", to: "e5", comment: "Has comment" }
+          ],
+          currentMoveIndex: 1,
+          isPreviewing: false,
+          drawOfferBy: null,
+          gameResult: { type: "ongoing" }
+        };
+
+        const serialized = serializeGameState(state);
+        const deserialized = deserializeGameState(serialized);
+
+        expect(deserialized.moveHistory[0].comment).toBeUndefined();
+        expect(deserialized.moveHistory[1].comment).toBe("Has comment");
+      });
+    });
+  });
 });
