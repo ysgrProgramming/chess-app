@@ -63,6 +63,25 @@ Only legal moves are accepted. If you attempt an illegal move, the piece will re
 
 Note: The application uses Standard Algebraic Notation (SAN) for move representation, including check (`+`) and checkmate (`#`) indicators.
 
+### Adding Comments to Moves
+
+You can add comments to any move in the game history:
+
+- **Add comment**: Click the "Add comment" button next to any move in the Move List to add a comment.
+- **Edit comment**: Click the "Edit" button next to an existing comment to modify it.
+- **Remove comment**: Edit a comment and clear the text, then save to remove it.
+- **Multi-line comments**: Comments support multiple lines. Press Enter to create a new line, or Shift+Enter to submit.
+
+Comments are included when you copy or download the kifu. The format follows PGN-style comments: `{Your comment here}`.
+
+**Example:**
+```
+1. e4 {King's pawn opening} e5 {Classical response}
+2. Nf3 {Knight development} Nc6
+```
+
+Comments are preserved when exporting and can be imported back if you paste a kifu with comments.
+
 ### Game End Conditions
 
 The game ends automatically when:
@@ -153,6 +172,15 @@ Converts moves to Standard Algebraic Notation (SAN):
 Exports move history in various formats:
 - **Text format**: Human-readable move list (e.g., "1. e4 e5 2. Nf3 Nc6").
 - **PGN format**: Portable Game Notation with headers and moves.
+- **Comments**: Move comments are included in exports using PGN-style `{comment}` format.
+
+#### 5. **Kifu Import** (`src/lib/notation.ts`)
+
+Parses kifu text (SAN notation) into moves:
+- **Text parsing**: Converts text format (e.g., "1. e4 e5") into `Move` objects.
+- **PGN parsing**: Handles PGN format with headers and moves.
+- **Comment parsing**: Extracts comments from `{comment}` format and attaches them to moves.
+- **Round-trip support**: Comments are preserved through export → import cycles.
 
 ### Data Flow
 

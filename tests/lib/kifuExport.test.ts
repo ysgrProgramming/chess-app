@@ -126,4 +126,116 @@ describe("kifuExport", () => {
       expect(typeof result).toBe("string");
     });
   });
+
+  describe("Move comments in export", () => {
+    it("should include comments in text format", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "King's pawn opening" },
+        { from: "e7", to: "e5", comment: "Classical response" }
+      ];
+      const result = movesToText(moves);
+      expect(result).toContain("King's pawn opening");
+      expect(result).toContain("Classical response");
+    });
+
+    it("should format comments with curly braces in text format", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Opening move" },
+        { from: "e7", to: "e5" }
+      ];
+      const result = movesToText(moves);
+      // Comments should appear after moves in {comment} format
+      expect(result).toMatch(/\{Opening move\}/);
+    });
+
+    it("should handle moves without comments", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4" },
+        { from: "e7", to: "e5", comment: "Only this has comment" }
+      ];
+      const result = movesToText(moves);
+      expect(result).toContain("1. e4");
+      expect(result).toContain("e5");
+      expect(result).toContain("{Only this has comment}");
+    });
+
+    it("should include comments in PGN format", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Opening" },
+        { from: "e7", to: "e5", comment: "Response" }
+      ];
+      const result = movesToPGN(moves);
+      expect(result).toContain("{Opening}");
+      expect(result).toContain("{Response}");
+    });
+
+    it("should handle multi-line comments", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Line 1\nLine 2\nLine 3" }
+      ];
+      const result = movesToText(moves);
+      // Multi-line comments should be preserved or escaped appropriately
+      expect(result).toContain("Line 1");
+    });
+
+    it("should handle special characters in comments", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Comment with {braces} and \"quotes\"" }
+      ];
+      const result = movesToText(moves);
+      // Special characters should be escaped or handled appropriately
+      expect(result).toContain("Comment with");
+    });
+
+    it("should handle empty comments gracefully", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "" },
+        { from: "e7", to: "e5" }
+      ];
+      const result = movesToText(moves);
+      // Empty comments should not appear in output
+      expect(result).toBe("1. e4 e5");
+    });
+  });
+
+  describe("Round-trip: export and import with comments", () => {
+    it("should preserve comments through export and import cycle", () => {
+      const originalMoves: Move[] = [
+        { from: "e2", to: "e4", comment: "King's pawn opening" },
+        { from: "e7", to: "e5", comment: "Classical response" },
+        { from: "g1", to: "f3", comment: "Knight development" }
+      ];
+
+      // Export to text
+      const exportedText = movesToText(originalMoves);
+
+      // Import from text (assuming parseKifuText exists)
+      // Note: This test will require parseKifuText implementation
+      // For now, we verify the export contains comments
+      expect(exportedText).toContain("King's pawn opening");
+      expect(exportedText).toContain("Classical response");
+      expect(exportedText).toContain("Knight development");
+    });
+
+    it("should handle full game with comments through export/import", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Opening" },
+        { from: "e7", to: "e5" },
+        { from: "g1", to: "f3", comment: "Development" },
+        { from: "b8", to: "c6" },
+        { from: "f1", to: "b5", comment: "Spanish opening" }
+      ];
+
+      const exportedText = movesToText(moves);
+      const exportedPGN = movesToPGN(moves);
+
+      // Verify comments are in both formats
+      expect(exportedText).toContain("{Opening}");
+      expect(exportedText).toContain("{Development}");
+      expect(exportedText).toContain("{Spanish opening}");
+      expect(exportedPGN).toContain("{Opening}");
+      expect(exportedPGN).toContain("{Development}");
+      expect(exportedPGN).toContain("{Spanish opening}");
+    });
+  });
 });

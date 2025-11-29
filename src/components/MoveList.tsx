@@ -33,6 +33,12 @@ export interface MoveListProps {
    * @param moveIndex - The index of the move to jump to (0-based, -1 for initial position)
    */
   readonly onMoveClick?: (moveIndex: number) => void;
+  /**
+   * Callback invoked when a move comment is updated.
+   * @param moveIndex - The index of the move (0-based)
+   * @param comment - The comment text (empty string to remove comment)
+   */
+  readonly onCommentUpdate?: (moveIndex: number, comment: string) => void;
 }
 
 /**
@@ -64,8 +70,11 @@ export const MoveList: React.FC<MoveListProps> = ({
   moves,
   currentMoveIndex,
   gameResult,
-  onMoveClick
+  onMoveClick,
+  onCommentUpdate
 }) => {
+  const [editingCommentIndex, setEditingCommentIndex] = React.useState<number | null>(null);
+  const [commentInput, setCommentInput] = React.useState<string>("");
   const effectiveGameResult: GameResult = gameResult ?? { type: "ongoing" };
   // Reconstruct board state for each move to generate SAN notation
   let currentBoardState = createInitialBoardState();
@@ -146,6 +155,52 @@ export const MoveList: React.FC<MoveListProps> = ({
     [moves, gameResult]
   );
 
+  /**
+   * Handles starting comment editing for a move.
+   */
+  const handleStartEditComment = useCallback(
+    (moveIndex: number) => {
+      const move = moves[moveIndex];
+      setEditingCommentIndex(moveIndex);
+      setCommentInput(move?.comment || "");
+    },
+    [moves]
+  );
+
+  /**
+   * Handles saving a comment.
+   */
+  const handleSaveComment = useCallback(() => {
+    if (editingCommentIndex !== null && onCommentUpdate) {
+      onCommentUpdate(editingCommentIndex, commentInput.trim());
+      setEditingCommentIndex(null);
+      setCommentInput("");
+    }
+  }, [editingCommentIndex, commentInput, onCommentUpdate]);
+
+  /**
+   * Handles canceling comment editing.
+   */
+  const handleCancelEditComment = useCallback(() => {
+    setEditingCommentIndex(null);
+    setCommentInput("");
+  }, []);
+
+  /**
+   * Handles key press in comment input.
+   */
+  const handleCommentKeyPress = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handleSaveComment();
+      } else if (event.key === "Escape") {
+        handleCancelEditComment();
+      }
+    },
+    [handleSaveComment, handleCancelEditComment]
+  );
+
   return (
     <div className="move-list-container">
       <div className="move-list-header">
@@ -173,30 +228,146 @@ export const MoveList: React.FC<MoveListProps> = ({
         {movePairs.map((pair, index) => {
           const isWhiteCurrent = pair.whiteMoveIndex === currentMoveIndex;
           const isBlackCurrent = pair.blackMoveIndex === currentMoveIndex;
+          const whiteMove = moves[pair.whiteMoveIndex];
+          const blackMove = pair.blackMoveIndex !== undefined ? moves[pair.blackMoveIndex] : undefined;
+          const isEditingWhite = editingCommentIndex === pair.whiteMoveIndex;
+          const isEditingBlack =
+            pair.blackMoveIndex !== undefined && editingCommentIndex === pair.blackMoveIndex;
+
           return (
             <li key={index} className="move-pair">
               <span className="move-number">{index + 1}.</span>
-              <span
-                className={`move-white ${isWhiteCurrent ? "current-move" : ""} ${
-                  onMoveClick ? "clickable-move" : ""
-                }`}
-                onClick={() => onMoveClick?.(pair.whiteMoveIndex)}
-                role={onMoveClick ? "button" : undefined}
-                aria-label={onMoveClick ? `Jump to move ${pair.whiteMoveIndex + 1}` : undefined}
-              >
-                {pair.white}
-              </span>
-              {pair.black && (
+              <div className="move-white-container">
                 <span
-                  className={`move-black ${isBlackCurrent ? "current-move" : ""} ${
+                  className={`move-white ${isWhiteCurrent ? "current-move" : ""} ${
                     onMoveClick ? "clickable-move" : ""
                   }`}
-                  onClick={() => onMoveClick?.(pair.blackMoveIndex!)}
+                  onClick={() => onMoveClick?.(pair.whiteMoveIndex)}
                   role={onMoveClick ? "button" : undefined}
-                  aria-label={onMoveClick ? `Jump to move ${pair.blackMoveIndex! + 1}` : undefined}
+                  aria-label={onMoveClick ? `Jump to move ${pair.whiteMoveIndex + 1}` : undefined}
                 >
-                  {pair.black}
+                  {pair.white}
                 </span>
+                {whiteMove?.comment && !isEditingWhite && (
+                  <div className="move-comment">
+                    {whiteMove.comment}
+                    {onCommentUpdate && (
+                      <button
+                        type="button"
+                        className="comment-edit-button"
+                        onClick={() => handleStartEditComment(pair.whiteMoveIndex)}
+                        aria-label={`Edit comment for move ${pair.whiteMoveIndex + 1}`}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                )}
+                {isEditingWhite && (
+                  <div className="comment-editor">
+                    <textarea
+                      value={commentInput}
+                      onChange={(e) => setCommentInput(e.target.value)}
+                      onKeyDown={handleCommentKeyPress}
+                      className="comment-input"
+                      aria-label={`Comment for move ${pair.whiteMoveIndex + 1}`}
+                      rows={3}
+                    />
+                    <div className="comment-editor-actions">
+                      <button
+                        type="button"
+                        onClick={handleSaveComment}
+                        className="comment-save-button"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEditComment}
+                        className="comment-cancel-button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!whiteMove?.comment && !isEditingWhite && onCommentUpdate && (
+                  <button
+                    type="button"
+                    className="comment-add-button"
+                    onClick={() => handleStartEditComment(pair.whiteMoveIndex)}
+                    aria-label={`Add comment for move ${pair.whiteMoveIndex + 1}`}
+                  >
+                    Add comment
+                  </button>
+                )}
+              </div>
+              {pair.black && (
+                <div className="move-black-container">
+                  <span
+                    className={`move-black ${isBlackCurrent ? "current-move" : ""} ${
+                      onMoveClick ? "clickable-move" : ""
+                    }`}
+                    onClick={() => onMoveClick?.(pair.blackMoveIndex!)}
+                    role={onMoveClick ? "button" : undefined}
+                    aria-label={onMoveClick ? `Jump to move ${pair.blackMoveIndex! + 1}` : undefined}
+                  >
+                    {pair.black}
+                  </span>
+                  {blackMove?.comment && !isEditingBlack && (
+                    <div className="move-comment">
+                      {blackMove.comment}
+                      {onCommentUpdate && (
+                        <button
+                          type="button"
+                          className="comment-edit-button"
+                          onClick={() => handleStartEditComment(pair.blackMoveIndex!)}
+                          aria-label={`Edit comment for move ${pair.blackMoveIndex! + 1}`}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {isEditingBlack && (
+                    <div className="comment-editor">
+                      <textarea
+                        value={commentInput}
+                        onChange={(e) => setCommentInput(e.target.value)}
+                        onKeyDown={handleCommentKeyPress}
+                        className="comment-input"
+                        aria-label={`Comment for move ${pair.blackMoveIndex! + 1}`}
+                        rows={3}
+                      />
+                      <div className="comment-editor-actions">
+                        <button
+                          type="button"
+                          onClick={handleSaveComment}
+                          className="comment-save-button"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEditComment}
+                          className="comment-cancel-button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!blackMove?.comment && !isEditingBlack && onCommentUpdate && (
+                    <button
+                      type="button"
+                      className="comment-add-button"
+                      onClick={() => handleStartEditComment(pair.blackMoveIndex!)}
+                      aria-label={`Add comment for move ${pair.blackMoveIndex! + 1}`}
+                    >
+                      Add comment
+                    </button>
+                  )}
+                </div>
               )}
             </li>
           );

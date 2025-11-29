@@ -28,7 +28,8 @@ export type GameAction =
   | { type: "OFFER_DRAW" }
   | { type: "ACCEPT_DRAW" }
   | { type: "DECLINE_DRAW" }
-  | { type: "RESIGN" };
+  | { type: "RESIGN" }
+  | { type: "UPDATE_MOVE_COMMENT"; moveIndex: number; comment: string };
 
 /**
  * Validation result for game state.
@@ -178,6 +179,30 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         gameResult: { type: "resignation", winner },
         drawOfferBy: null
+      };
+    }
+    case "UPDATE_MOVE_COMMENT": {
+      const { moveIndex, comment } = action;
+      // Validate moveIndex bounds
+      if (moveIndex < 0 || moveIndex >= state.moveHistory.length) {
+        return state;
+      }
+
+      const updatedHistory = state.moveHistory.map((move, index) => {
+        if (index === moveIndex) {
+          // Remove comment if empty string, otherwise update it
+          if (comment === "") {
+            const { comment: _, ...moveWithoutComment } = move;
+            return moveWithoutComment;
+          }
+          return { ...move, comment };
+        }
+        return move;
+      });
+
+      return {
+        ...state,
+        moveHistory: updatedHistory
       };
     }
     default:

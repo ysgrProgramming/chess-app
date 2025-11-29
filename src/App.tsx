@@ -24,6 +24,7 @@ export const App: React.FC = () => {
     canGoToPreviousMove,
     canGoToNextMove,
     visibleMoves,
+    handleUpdateMoveComment,
     state: { currentMoveIndex }
   } = useGameState();
 
@@ -131,6 +132,7 @@ export const App: React.FC = () => {
             currentMoveIndex={currentMoveIndex}
             gameResult={gameResult}
             onMoveClick={handleJumpToMove}
+            onCommentUpdate={handleUpdateMoveComment}
           />
         </aside>
       </div>

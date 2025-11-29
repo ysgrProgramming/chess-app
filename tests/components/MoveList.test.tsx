@@ -222,4 +222,130 @@ describe("MoveList", () => {
       expect(filename).toMatch(/^chess-game-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.txt$/);
     });
   });
+
+  describe("Move comments", () => {
+    it("should display comments for moves that have them", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "King's pawn opening" },
+        { from: "e7", to: "e5", comment: "Classical response" }
+      ];
+      render(<MoveList moves={moves} currentMoveIndex={1} />);
+
+      expect(screen.getByText(/King's pawn opening/)).toBeInTheDocument();
+      expect(screen.getByText(/Classical response/)).toBeInTheDocument();
+    });
+
+    it("should not display comment section for moves without comments", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4" },
+        { from: "e7", to: "e5", comment: "Only this has comment" }
+      ];
+      render(<MoveList moves={moves} currentMoveIndex={1} />);
+
+      expect(screen.getByText(/Only this has comment/)).toBeInTheDocument();
+      // First move should not have comment display
+    });
+
+    it("should allow editing comments when edit button is clicked", async () => {
+      const user = userEvent.setup();
+      const onCommentUpdate = vi.fn();
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Original comment" }
+      ];
+
+      // Note: This test assumes MoveList will accept onCommentUpdate prop
+      // The actual implementation may differ
+      render(
+        <MoveList
+          moves={moves}
+          currentMoveIndex={0}
+          onCommentUpdate={onCommentUpdate}
+        />
+      );
+
+      // Find and click edit button (implementation dependent)
+      const editButton = screen.getByRole("button", { name: /edit comment/i });
+      await user.click(editButton);
+
+      // Find comment input field
+      const commentInput = screen.getByRole("textbox", { name: /comment/i });
+      await user.clear(commentInput);
+      await user.type(commentInput, "Updated comment");
+
+      // Submit the comment
+      const saveButton = screen.getByRole("button", { name: /save/i });
+      await user.click(saveButton);
+
+      expect(onCommentUpdate).toHaveBeenCalledWith(0, "Updated comment");
+    });
+
+    it("should handle empty comment input", async () => {
+      const user = userEvent.setup();
+      const onCommentUpdate = vi.fn();
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "To be removed" }
+      ];
+
+      render(
+        <MoveList
+          moves={moves}
+          currentMoveIndex={0}
+          onCommentUpdate={onCommentUpdate}
+        />
+      );
+
+      const editButton = screen.getByRole("button", { name: /edit comment/i });
+      await user.click(editButton);
+
+      const commentInput = screen.getByRole("textbox", { name: /comment/i });
+      await user.clear(commentInput);
+
+      const saveButton = screen.getByRole("button", { name: /save/i });
+      await user.click(saveButton);
+
+      expect(onCommentUpdate).toHaveBeenCalledWith(0, "");
+    });
+
+    it("should handle multi-line comments display", () => {
+      const moves: Move[] = [
+        { from: "e2", to: "e4", comment: "Line 1\nLine 2\nLine 3" }
+      ];
+      render(<MoveList moves={moves} currentMoveIndex={0} />);
+
+      const commentElement = screen.getByText(/Line 1/);
+      expect(commentElement).toBeInTheDocument();
+      // Multi-line comments should be displayed with proper formatting
+    });
+
+    it("should have proper accessibility labels for comment editing", () => {
+      const moves: Move[] = [{ from: "e2", to: "e4", comment: "Test comment" }];
+      render(<MoveList moves={moves} currentMoveIndex={0} onCommentUpdate={vi.fn()} />);
+
+      const editButton = screen.getByRole("button", { name: /edit comment/i });
+      expect(editButton).toHaveAttribute("aria-label");
+    });
+
+    it("should handle Enter key to submit comment", async () => {
+      const user = userEvent.setup();
+      const onCommentUpdate = vi.fn();
+      const moves: Move[] = [{ from: "e2", to: "e4" }];
+
+      render(
+        <MoveList
+          moves={moves}
+          currentMoveIndex={0}
+          onCommentUpdate={onCommentUpdate}
+        />
+      );
+
+      // Open comment editor
+      const addCommentButton = screen.getByRole("button", { name: /add comment/i });
+      await user.click(addCommentButton);
+
+      const commentInput = screen.getByRole("textbox", { name: /comment/i });
+      await user.type(commentInput, "New comment{Enter}");
+
+      expect(onCommentUpdate).toHaveBeenCalledWith(0, "New comment");
+    });
+  });
 });

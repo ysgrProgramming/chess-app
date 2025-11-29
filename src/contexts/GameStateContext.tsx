@@ -48,6 +48,7 @@ interface GameStateContextValue {
   readonly canGoToPreviousMove: boolean;
   readonly canGoToNextMove: boolean;
   readonly visibleMoves: readonly Move[];
+  readonly handleUpdateMoveComment: (moveIndex: number, comment: string) => void;
 }
 
 /**
@@ -235,6 +236,22 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     dispatch({ type: "RESIGN" });
   }, [isGameOver]);
 
+  /**
+   * Handles updating a move comment.
+   *
+   * @param moveIndex - Index of the move to update (0-based).
+   * @param comment - Comment text (empty string to remove comment).
+   */
+  const handleUpdateMoveComment = useCallback(
+    (moveIndex: number, comment: string) => {
+      if (moveIndex < 0 || moveIndex >= state.moveHistory.length) {
+        return;
+      }
+      dispatch({ type: "UPDATE_MOVE_COMMENT", moveIndex, comment });
+    },
+    [dispatch, state.moveHistory.length]
+  );
+
   const canUndo = state.currentMoveIndex >= 0;
   const canGoToPreviousMove = state.currentMoveIndex >= 0;
   const canGoToNextMove =
@@ -264,7 +281,8 @@ export function GameStateProvider({ children }: GameStateProviderProps): React.J
     canUndo,
     canGoToPreviousMove,
     canGoToNextMove,
-    visibleMoves
+    visibleMoves,
+    handleUpdateMoveComment
   };
 
   return <GameStateContext.Provider value={contextValue}>{children}</GameStateContext.Provider>;

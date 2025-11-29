@@ -3,7 +3,14 @@
  */
 
 import type { BoardState, Move, Piece, Square, Color } from "./types";
-import { getLegalMoves, applyMove, evaluateGameResult, isKingInCheck } from "./chessEngine";
+import {
+  getLegalMoves,
+  applyMove,
+  evaluateGameResult,
+  isKingInCheck,
+  validateMove,
+  createInitialBoardState
+} from "./chessEngine";
 
 /**
  * Piece type to SAN symbol mapping.
@@ -189,4 +196,296 @@ function getDisambiguation(boardState: BoardState, move: Move, piece: Piece): st
 
   // Need both file and rank
   return move.from;
+}
+
+/**
+ * Parsed kifu result containing moves and metadata.
+ */
+export interface ParsedKifu {
+  readonly moves: readonly Move[];
+}
+
+/**
+ * Parses kifu text (SAN notation) into moves with optional comments.
+ * Supports both plain text format (e.g., "1. e4 e5") and PGN format.
+ *
+ * @param kifuText - The kifu text to parse (may include PGN headers).
+ * @returns Parsed kifu with moves and comments.
+ */
+export function parseKifuText(kifuText: string): ParsedKifu {
+  // Remove PGN headers if present
+  const movesSection = kifuText.split("\n\n").pop() || kifuText;
+  const cleanedText = movesSection.trim();
+
+  if (!cleanedText) {
+    return { moves: [] };
+  }
+
+  const moves: Move[] = [];
+  let currentBoardState = createInitialBoardState();
+
+  // Tokenize the text: split by move numbers, preserving comments
+  // Pattern: "1. e4 {comment} e5 {comment} 2. Nf3 ..."
+  const tokens: Array<{ type: "number" | "move" | "comment"; value: string }> = [];
+  let currentIndex = 0;
+
+  // Tokenize the text
+  while (currentIndex < cleanedText.length) {
+    // Match move number: "1.", "2.", etc.
+    const numberMatch = cleanedText.slice(currentIndex).match(/^(\d+)\.\s*/);
+    if (numberMatch) {
+      tokens.push({ type: "number", value: numberMatch[1] });
+      currentIndex += numberMatch[0].length;
+      continue;
+    }
+
+    // Match comment: "{...}"
+    const commentMatch = cleanedText.slice(currentIndex).match(/^\{([^}]*)\}\s*/);
+    if (commentMatch) {
+      tokens.push({ type: "comment", value: commentMatch[1] });
+      currentIndex += commentMatch[0].length;
+      continue;
+    }
+
+    // Match move: SAN notation (e.g., "e4", "Nf3", "O-O")
+    const moveMatch = cleanedText.slice(currentIndex).match(/^([^\s{]+)\s*/);
+    if (moveMatch) {
+      tokens.push({ type: "move", value: moveMatch[1] });
+      currentIndex += moveMatch[0].length;
+      continue;
+    }
+
+    // Skip whitespace
+    if (cleanedText[currentIndex].match(/\s/)) {
+      currentIndex++;
+      continue;
+    }
+
+    // Unknown token, skip
+    currentIndex++;
+  }
+
+  // Parse tokens into moves
+  let i = 0;
+  while (i < tokens.length) {
+    // Expect move number
+    if (tokens[i].type !== "number") {
+      i++;
+      continue;
+    }
+
+    i++; // Skip number
+
+    // Parse white move
+    if (i >= tokens.length || tokens[i].type !== "move") {
+      continue;
+    }
+    const whiteSAN = tokens[i].value;
+    i++;
+
+    // Check for white comment
+    let whiteComment: string | undefined;
+    if (i < tokens.length && tokens[i].type === "comment") {
+      whiteComment = unescapeComment(tokens[i].value);
+      i++;
+    }
+
+    // Parse white move
+    try {
+      const whiteMove = parseSANToMove(currentBoardState, whiteSAN);
+      if (whiteMove) {
+        moves.push(whiteComment ? { ...whiteMove, comment: whiteComment } : whiteMove);
+        const whitePiece = currentBoardState.squares.get(whiteMove.from);
+        if (whitePiece) {
+          const stateForMove: BoardState = {
+            ...currentBoardState,
+            activeColor: whitePiece.color
+          };
+          currentBoardState = applyMove(stateForMove, whiteMove);
+        }
+      }
+    } catch {
+      // Skip invalid moves
+    }
+
+    // Check for black move
+    if (i >= tokens.length) {
+      continue;
+    }
+
+    // If next token is a number, we've moved to the next move pair
+    if (tokens[i].type === "number") {
+      continue;
+    }
+
+    // Parse black move
+    if (tokens[i].type !== "move") {
+      continue;
+    }
+    const blackSAN = tokens[i].value;
+    i++;
+
+    // Check for black comment
+    let blackComment: string | undefined;
+    if (i < tokens.length && tokens[i].type === "comment") {
+      blackComment = unescapeComment(tokens[i].value);
+      i++;
+    }
+
+    // Parse black move
+    try {
+      const blackMove = parseSANToMove(currentBoardState, blackSAN);
+      if (blackMove) {
+        moves.push(blackComment ? { ...blackMove, comment: blackComment } : blackMove);
+        const blackPiece = currentBoardState.squares.get(blackMove.from);
+        if (blackPiece) {
+          const stateForMove: BoardState = {
+            ...currentBoardState,
+            activeColor: blackPiece.color
+          };
+          currentBoardState = applyMove(stateForMove, blackMove);
+        }
+      }
+    } catch {
+      // Skip invalid moves
+    }
+  }
+
+  // Fallback: try to parse without move numbers if regex didn't match
+  if (moves.length === 0) {
+    const simpleMoves = cleanedText.split(/\s+/).filter((token) => {
+      // Filter out move numbers and comments
+      return !token.match(/^\d+\.?$/) && !token.match(/^\{.*\}$/);
+    });
+
+    currentBoardState = createInitialBoardState();
+    for (const san of simpleMoves) {
+      try {
+        const move = parseSANToMove(currentBoardState, san);
+        if (move) {
+          moves.push(move);
+          currentBoardState = applyMove(currentBoardState, move);
+        }
+      } catch {
+        // Skip invalid moves
+      }
+    }
+  }
+
+  return { moves };
+}
+
+/**
+ * Unescapes comment text from exported format.
+ */
+function unescapeComment(comment: string): string {
+  return comment
+    .replace(/\\n/g, "\n") // Unescape newlines
+    .replace(/\\"/g, '"') // Unescape quotes
+    .replace(/\\}/g, "}") // Unescape closing braces
+    .replace(/\\{/g, "{") // Unescape opening braces
+    .replace(/\\\\/g, "\\"); // Unescape backslashes (must be last)
+}
+
+/**
+ * Parses a SAN move string into a Move object.
+ * This is a simplified parser - a full implementation would handle all SAN edge cases.
+ *
+ * @param boardState - Current board state before the move.
+ * @param san - SAN notation string (e.g., "e4", "Nf3", "O-O").
+ * @returns Move object or null if parsing fails.
+ */
+function parseSANToMove(boardState: BoardState, san: string): Move | null {
+  const trimmed = san.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Handle castling
+  if (trimmed === "O-O" || trimmed === "0-0") {
+    const kingSquare = boardState.activeColor === "white" ? "e1" : "e8";
+    return { from: kingSquare, to: kingSquare[0] === "e" ? "g" + kingSquare[1] : kingSquare };
+  }
+  if (trimmed === "O-O-O" || trimmed === "0-0-0") {
+    const kingSquare = boardState.activeColor === "white" ? "e1" : "e8";
+    return { from: kingSquare, to: kingSquare[0] === "e" ? "c" + kingSquare[1] : kingSquare };
+  }
+
+  // Remove check/checkmate symbols
+  const cleanSAN = trimmed.replace(/[+#]$/, "");
+
+  // Handle promotion
+  const promotionMatch = cleanSAN.match(/=([QRNB])$/);
+  const promotionType = promotionMatch
+    ? ({ Q: "queen", R: "rook", N: "knight", B: "bishop" } as Record<string, PieceType>)[
+        promotionMatch[1]
+      ]
+    : undefined;
+  const sanWithoutPromotion = cleanSAN.replace(/=[QRNB]$/, "");
+
+  // Handle captures
+  const sanWithoutCapture = sanWithoutPromotion.replace("x", "");
+
+  // Extract destination square (last 2 characters)
+  const destinationMatch = sanWithoutCapture.match(/([a-h][1-8])$/);
+  if (!destinationMatch) {
+    return null;
+  }
+  const to = destinationMatch[1];
+
+  // Determine piece type and source square
+  const pieceSymbol = sanWithoutCapture[0];
+  const isPieceMove = /[KQRNB]/.test(pieceSymbol);
+
+  if (isPieceMove) {
+    // Piece move - need to find source square
+    const pieceTypeMap: Record<string, PieceType> = {
+      K: "king",
+      Q: "queen",
+      R: "rook",
+      N: "knight",
+      B: "bishop"
+    };
+    const pieceType = pieceTypeMap[pieceSymbol];
+    if (!pieceType) {
+      return null;
+    }
+
+    // Find the piece that can move to the destination
+    for (const [square, piece] of boardState.squares.entries()) {
+      if (piece.type === pieceType && piece.color === boardState.activeColor) {
+        const legalMoves = getLegalMoves(boardState, square);
+        if (legalMoves.includes(to)) {
+          return { from: square, to, promotion: promotionType };
+        }
+      }
+    }
+  } else {
+    // Pawn move
+    const file = sanWithoutCapture[0];
+    const fromFile = file.match(/[a-h]/) ? file : to[0];
+    const rank = boardState.activeColor === "white" ? to[1] === "8" ? "7" : "6" : to[1] === "1" ? "2" : "3";
+    const from = fromFile + rank;
+
+    // Verify the pawn exists at the source
+    const piece = boardState.squares.get(from);
+    if (piece?.type === "pawn" && piece.color === boardState.activeColor) {
+      return { from, to, promotion: promotionType };
+    }
+
+    // Try alternative source squares for pawn moves
+    for (let r = 1; r <= 8; r++) {
+      const testFrom = fromFile + r;
+      const testPiece = boardState.squares.get(testFrom);
+      if (testPiece?.type === "pawn" && testPiece.color === boardState.activeColor) {
+        const testMove: Move = { from: testFrom, to, promotion: promotionType };
+        const validation = validateMove(boardState, testMove);
+        if (validation.valid) {
+          return testMove;
+        }
+      }
+    }
+  }
+
+  return null;
 }
